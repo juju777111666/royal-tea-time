@@ -1,0 +1,405 @@
+Direct answer — I reviewed your app and fixed several functional, reliability and security issues (peer ID collisions, trusting client-reported times, connection cleanup, missing error handling, double submissions, broadcasting player list). Below I explain the issues I found and then provide a patched HTML (complete file) you can drop in to replace your current file.
+
+What I changed (summary)
+- Prevented clients from cheating by reporting their own "time": host now timestamps submissions server-side and computes speed bonus from host's question start time.
+- Prevented double submissions: host ignores a second SUBMIT_ANSWER from the same peer for the same question.
+- Connection lifecycle handling: host now reacts to conn.close/error and removes player entries; player handles host disconnection.
+- Broadcast players list: when a player joins or leaves, the host broadcasts PLAYERS_UPDATE so everyone sees current players.
+- Peer initialization error handling: host regenerates room ID / shows console error if PeerJS id is already taken; client handles connection failures.
+- Some UX hardening: trimmed player names, disabled buttons automatically after submit, safety checks for sending to disconnected peers.
+- Minor reactive / implementation corrections and comments (e.g., using answersReceived as ref object consistently).
+- Added questionStart timestamp used by host to compute elapsed time.
+
+Notes / recommendations (next steps)
+- PeerJS requires a signaling server (PeerServer). Running pure PeerJS clients without a signaling server will fail in many environments. Either host your own PeerServer (peerjs-server) or configure a hosted signalling server (and add appropriate options to new Peer(...)). If you plan public use, use a proper server with authentication and TLS.
+- Consider adding basic authentication or a host password for room creation/joining if you expect untrusted players.
+- Consider persisting final leaderboard/scores server-side if you want tamper-proof records (P2P alone is harder to secure).
+- Validate/escape player names server-side if you later store or display them in other contexts (avoid XSS).
+- If you need complete anti-cheat, move answer submission / scoring to a centralized server rather than P2P.
+
+Patched file
+```html name=index.html
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Royal Tea Time 下午茶服務生爭霸戰</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+  <style>
+    [v-cloak] { display: none; }
+    .gold-gradient { background: linear-gradient(135deg, #bf953f, #fcf6ba, #b38728, #fbf5b7); }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen font-sans">
+  <div id="app" v-cloak class="max-w-4xl mx-auto p-4">
+
+    <div v-if="role === null" class="text-center py-12 space-y-6">
+      <h1 class="text-4xl md:text-6xl font-extrabold text-amber-400 tracking-wider">🫖 Royal Tea Time</h1>
+      <p class="text-slate-400 text-lg">英式下午茶打工服務生爭霸戰</p>
+      <div class="flex justify-center gap-6 pt-6">
+        <button @click="initHost" class="bg-amber-600 hover:bg-amber-500 text-white text-xl font-bold py-4 px-8 rounded-xl shadow-lg transition">
+          我是主持人 (建立大螢幕)
+        </button>
+        <button @click="role = 'player'" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xl font-bold py-4 px-8 rounded-xl shadow-lg transition">
+          我是服務生 (加入遊戲)
+        </button>
+      </div>
+    </div>
+
+    <div v-if="role === 'host'" class="space-y-6">
+      <div class="flex justify-between items-center border-b border-slate-700 pb-4">
+        <div>
+          <h2 class="text-2xl font-bold text-amber-400">大廳房間 Code: <span class="bg-slate-800 px-3 py-1 rounded text-white tracking-widest">{{ roomId }}</span></h2>
+          <p class="text-sm text-slate-400">請玩家輸入此 Code 加入房間（目前人數：{{ players.length }} 人）</p>
+        </div>
+        <button v-if="gameState === 'lobby'" @click="startGame" :disabled="players.length === 0" class="bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 font-extrabold px-6 py-3 rounded-lg">
+          開始今日營業 🚀
+        </button>
+      </div>
+
+      <div v-if="gameState === 'lobby'" class="bg-slate-800 p-6 rounded-xl">
+        <h3 class="text-lg font-bold mb-4">已打卡上班的服務生：</h3>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div v-for="p in players" :key="p.id" class="bg-slate-700 p-3 rounded-lg text-center font-bold border border-slate-600">
+            🧑‍🍳 {{ p.name }}
+          </div>
+        </div>
+      </div>
+
+      <div v-if="gameState === 'quiz'" class="space-y-6">
+        <div class="bg-slate-800 p-6 rounded-xl border border-amber-500/30">
+          <div class="flex justify-between items-center mb-4">
+            <span class="bg-amber-500/20 text-amber-300 border border-amber-500/40 px-3 py-1 rounded-full text-sm font-bold">
+              {{ currentQ.isBonus ? '🧾 全場唯一加分題／主管考核題' : '💰 普通題 第 ' + (currentQIndex + 1) + ' 題' }}
+            </span>
+            <span class="text-2xl font-black text-rose-400">⏱️ {{ timer }}s</span>
+          </div>
+          <h3 class="text-2xl font-bold mb-6 text-white">{{ currentQ.question }}</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div v-for="(opt, idx) in currentQ.options" :key="idx" 
+                 :class="['p-4 rounded-xl border font-semibold text-lg transition', 
+                          showAnswer && idx === currentQ.answer ? 'bg-emerald-600 border-emerald-400 text-white' : 'bg-slate-700 border-slate-600']">
+              {{ String.fromCharCode(65 + idx) }}. {{ opt }}
+            </div>
+          </div>
+        </div>
+
+        <div class="flex justify-between items-center">
+          <div class="text-slate-400">已收到回答：{{ answeredCount }} / {{ players.length }}</div>
+          <button v-if="!showAnswer" @click="revealAnswer" class="bg-blue-600 hover:bg-blue-500 px-6 py-2 rounded-lg font-bold">公布答案</button>
+          <button v-else @click="nextQuestion" class="bg-amber-500 hover:bg-amber-400 text-slate-950 px-6 py-2 rounded-lg font-bold">
+            {{ currentQIndex + 1 < questions.length ? '下一題 👉' : '結算今日收入 🏆' }}
+          </button>
+        </div>
+      </div>
+
+      <div v-if="gameState === 'leaderboard'" class="bg-slate-800 p-6 rounded-xl space-y-4">
+        <h2 class="text-3xl font-black text-amber-400 text-center">🏆 今日服務生結算排行榜</h2>
+        <div class="space-y-2">
+          <div v-for="(p, rank) in sortedPlayers" :key="p.id" 
+               :class="['flex justify-between items-center p-4 rounded-xl font-bold', 
+                        rank === 0 ? 'gold-gradient text-slate-950 scale-105 shadow-xl' : 'bg-slate-700']">
+            <div class="flex items-center gap-3">
+              <span class="text-2xl">{{ rank === 0 ? '🥇' : rank === 1 ? '🥈' : rank === 2 ? '🥉' : '#' + (rank + 1) }}</span>
+              <span class="text-xl">{{ p.name }}</span>
+              <span v-if="rank === 0" class="bg-slate-900 text-amber-300 text-xs px-2 py-1 rounded">🎁 獲得飛翔體驗卡一張</span>
+            </div>
+            <div class="text-xl font-mono">${{ p.score.toLocaleString() }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="role === 'player'" class="space-y-6">
+      <div v-if="!joined" class="bg-slate-800 p-6 rounded-xl space-y-4 max-w-md mx-auto">
+        <h2 class="text-2xl font-bold text-amber-400">打卡上班</h2>
+        <div>
+          <label class="block text-sm text-slate-400 mb-1">房間 Code</label>
+          <input v-model="inputRoomId" type="text" placeholder="例如：1234" class="w-full bg-slate-700 p-3 rounded-lg border border-slate-600 text-white font-mono uppercase">
+        </div>
+        <div>
+          <label class="block text-sm text-slate-400 mb-1">服務生暱稱</label>
+          <input v-model="playerName" type="text" placeholder="你的名字" class="w-full bg-slate-700 p-3 rounded-lg border border-slate-600 text-white">
+        </div>
+        <button @click="joinHost" :disabled="!inputRoomId || !playerName" class="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold py-3 rounded-lg">
+          連線打卡
+        </button>
+      </div>
+
+      <div v-else class="space-y-6">
+        <div class="bg-slate-800 p-4 rounded-xl flex justify-between items-center border border-slate-700">
+          <span class="font-bold">🧑‍🍳 {{ playerName }}</span>
+          <span class="font-mono text-amber-400 font-bold">今日收入: ${{ playerScore.toLocaleString() }}</span>
+        </div>
+
+        <div v-if="playerState === 'waiting'" class="text-center py-16 bg-slate-800 rounded-xl">
+          <p class="text-xl text-slate-300 animate-pulse">☕ 等待主持人開始/下一題...</p>
+        </div>
+
+        <div v-if="playerState === 'answering'" class="grid grid-cols-2 gap-4">
+          <button v-for="(opt, idx) in 4" :key="idx" @click="submitAnswer(idx)" 
+                  :disabled="submittedThisQuestion"
+                  class="bg-amber-600 hover:bg-amber-500 active:bg-amber-700 disabled:opacity-60 text-white font-black text-3xl py-12 rounded-xl shadow-lg border-b-4 border-amber-800">
+            {{ String.fromCharCode(65 + idx) }}
+          </button>
+        </div>
+
+        <div v-if="playerState === 'submitted'" class="text-center py-16 bg-slate-800 rounded-xl space-y-2">
+          <p class="text-2xl font-bold text-emerald-400">✓ 已送出作答！</p>
+          <p class="text-slate-400">請看大螢幕等待公布結果...</p>
+        </div>
+
+        <div v-if="playerState === 'result'" class="text-center py-12 bg-slate-800 rounded-xl space-y-4">
+          <div v-if="lastResult.isCorrect" class="text-5xl font-black text-emerald-400">🎉 答對了！</div>
+          <div v-else-if="lastResult.isBonus" class="text-2xl font-bold text-amber-300 p-4 border border-amber-500/30 bg-amber-500/10 rounded-xl">
+            😐 主管對於你的表現感到失望
+          </div>
+          <div v-else class="text-3xl font-black text-rose-500">
+            💸 答錯扣款！<br><span class="text-xl font-mono">−114,514</span>
+          </div>
+          <p class="text-slate-400">等待主持人切換下一題...</p>
+        </div>
+
+        <div v-if="playerState === 'ended'" class="text-center py-12 bg-slate-800 rounded-xl space-y-4">
+          <h2 class="text-3xl font-bold text-amber-400">營業結束！</h2>
+          <p class="text-2xl font-mono">最終今日收入：<span class="text-emerald-400">${{ playerScore.toLocaleString() }}</span></p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const { createApp, ref, computed } = Vue;
+
+    const QUESTIONS = [
+      { question: "【禮儀型】在英國傳統禮儀中，喝茶時翹起小指會被視為？", options: ["極高優雅的展現", "愛作秀沒禮貌的大禁忌", "暗示茶溫剛好", "讚賞茶葉品質"], answer: 1, isBonus: false },
+      { question: "【歷史型】18 世紀平民在喝茶時習慣先倒冷牛奶（MIF）的主要原因是？", options: ["讓顏色勻稱", "平民瓷器品質差，直倒熱茶會爆裂", "防止牛奶結塊", "節省茶葉錢"], answer: 1, isBonus: false },
+      { question: "【美食型】傳統英式下午茶的正確食用順序為？", options: ["司康→三明治→糕點→茶", "茶→三明治→司康→精緻糕點", "精緻糕點→司康→三明治→茶", "三明治→茶→糕點→司康"], answer: 1, isBonus: false },
+      { question: "【禮儀型】享用司康（Scone）時，符合禮儀的吃法是？", options: ["用牛排刀對半切開", "用手直接掰開", "整顆大口咬下", "用叉子將司康搗碎"], answer: 1, isBonus: false },
+      { question: "【歷史型】1784 年英國政府採取何項政策讓平民也能買得起真茶？", options: ["禁止荷蘭船隻進港", "對茶葉進行斷崖式減稅 (119% 降至 12.5%)", "嚴懲賣二手茶的僕人", "免費發放茶葉"], answer: 1, isBonus: false },
+      { question: "【刁鑽型】工業革命期間工人大量飲用加糖茶的核心原因是？", options: ["模仿貴族風尚", "咖啡因提神加糖快速補充工作熱量", "當時地下水有毒", "工廠強制發放"], answer: 1, isBonus: false },
+      { question: "【🧾 全場唯一加分題】葡萄牙 Princess Catherine 在 1662 年對英國茶文化帶來什麼關鍵影響？", options: ["將中國茶與宮廷飲茶習慣帶入英國", "建立印度阿薩姆官方商路", "發明司康加果醬組合", "統一茶葉市場價格"], answer: 0, isBonus: true }
+    ];
+
+    createApp({
+      setup() {
+        const role = ref(null);
+        const roomId = ref('');
+        const inputRoomId = ref('');
+        const playerName = ref('');
+        const players = ref([]);
+        const gameState = ref('lobby'); // lobby, quiz, leaderboard
+        const playerState = ref('waiting'); // waiting, answering, submitted, result, ended
+        const currentQIndex = ref(0);
+        const timer = ref(15);
+        const timerInterval = ref(null);
+        const showAnswer = ref(false);
+        const joined = ref(false);
+        const playerScore = ref(0);
+        const lastResult = ref({ isCorrect: false, isBonus: false });
+        const submittedThisQuestion = ref(false);
+
+        let peer = null;
+        let hostConn = null;
+        const playerConns = ref([]); // array of Peer connections on host
+        const answersReceived = ref({}); // keyed by peer id: {answer, receivedAt}
+
+        // host-side question starting timestamp (ms)
+        let questionStartAt = null;
+
+        const currentQ = computed(() => QUESTIONS[currentQIndex.value]);
+        const answeredCount = computed(() => Object.keys(answersReceived.value).length);
+        const sortedPlayers = computed(() => [...players.value].sort((a, b) => b.score - a.score));
+
+        // --- 主持人端邏輯 ---
+        const createPeerWithId = (id) => {
+          // Note: in production, pass Peer options for a PeerServer (host, port, key, secure)
+          try {
+            return new Peer(id);
+          } catch (err) {
+            console.error('Peer creation failed', err);
+            return null;
+          }
+        };
+
+        const initHost = () => {
+          role.value = 'host';
+          // generate id and attempt to create Peer; handle 'unavailable-id' by regenerating once
+          const makeNewRoom = () => Math.floor(1000 + Math.random() * 9000).toString();
+          roomId.value = makeNewRoom();
+          peer = createPeerWithId('rtt-room-' + roomId.value);
+
+          if (!peer) {
+            console.error('建立 Peer 失敗');
+            return;
+          }
+
+          peer.on('open', (id) => {
+            console.log('Host peer open:', id);
+          });
+
+          peer.on('error', (err) => {
+            console.error('Peer error:', err);
+            // if id already taken, regenerate once and recreate
+            if (err.type === 'unavailable-id' || /ID.*already in use/i.test(err.message || '')) {
+              console.warn('房間 ID 已被使用，重新產生房間 ID');
+              // try regenerate
+              const newId = makeNewRoom();
+              roomId.value = newId;
+              // destroy previous peer if possible, then recreate
+              try { peer.destroy && peer.destroy(); } catch(e){/*ignored*/ }
+              peer = createPeerWithId('rtt-room-' + roomId.value);
+            }
+          });
+
+          peer.on('connection', (conn) => {
+            console.log('Incoming conn from', conn.peer);
+            conn.on('data', (data) => {
+              if (data && data.type === 'JOIN') {
+                // sanitize name
+                const name = (data.name || '').toString().trim().slice(0, 50) || '匿名';
+                // avoid duplicates for display - store by conn.peer
+                if (!players.value.find(p => p.id === conn.peer)) {
+                  players.value.push({ id: conn.peer, name, score: 0 });
+                }
+                playerConns.value.push(conn);
+                // ack the new player
+                safeSend(conn, { type: 'JOINED' });
+                // broadcast updated player list to everyone
+                broadcast({ type: 'PLAYERS_UPDATE', players: players.value.map(p => ({ id: p.id, name: p.name, score: p.score })) });
+              } else if (data && data.type === 'SUBMIT_ANSWER') {
+                // store server-side timestamp on receipt. ignore repeated submissions from the same peer for this question
+                if (!answersReceived.value[conn.peer]) {
+                  answersReceived.value[conn.peer] = {
+                    answer: data.answer,
+                    receivedAt: Date.now()
+                  };
+                } else {
+                  console.log('Duplicate submit ignored from', conn.peer);
+                }
+              }
+            });
+
+            conn.on('close', () => {
+              console.log('conn closed:', conn.peer);
+              // remove player and connection
+              removePlayer(conn.peer);
+            });
+
+            conn.on('error', (err) => {
+              console.warn('conn error from', conn.peer, err);
+              // remove to keep state clean
+              removePlayer(conn.peer);
+            });
+          });
+        };
+
+        const safeSend = (conn, payload) => {
+          try {
+            if (conn && conn.open) conn.send(payload);
+          } catch (e) {
+            console.warn('failed to send to', conn && conn.peer, e);
+          }
+        };
+
+        const broadcast = (payload) => {
+          // send to all open connections
+          playerConns.value.forEach(c => {
+            safeSend(c, payload);
+          });
+        };
+
+        const removePlayer = (peerId) => {
+          const idx = players.value.findIndex(p => p.id === peerId);
+          if (idx !== -1) players.value.splice(idx, 1);
+          // remove connection object(s)
+          for (let i = playerConns.value.length - 1; i >= 0; i--) {
+            if (playerConns.value[i].peer === peerId) playerConns.value.splice(i, 1);
+          }
+          // remove any recorded answer
+          if (answersReceived.value[peerId]) delete answersReceived.value[peerId];
+          // broadcast updated players
+          broadcast({ type: 'PLAYERS_UPDATE', players: players.value.map(p => ({ id: p.id, name: p.name, score: p.score })) });
+        };
+
+        const startGame = () => {
+          currentQIndex.value = 0;
+          startQuestion();
+        };
+
+        const startQuestion = () => {
+          gameState.value = 'quiz';
+          showAnswer.value = false;
+          answersReceived.value = {};
+          timer.value = 15;
+          // mark start time on host
+          questionStartAt = Date.now();
+
+          broadcast({ type: 'START_Q' });
+
+          clearInterval(timerInterval.value);
+          timerInterval.value = setInterval(() => {
+            if (timer.value > 0) {
+              timer.value--;
+            } else {
+              revealAnswer();
+            }
+          }, 1000);
+        };
+
+        const revealAnswer = () => {
+          clearInterval(timerInterval.value);
+          showAnswer.value = true;
+          const q = currentQ.value;
+
+          // compute results using server-side recorded timestamps
+          players.value.forEach(p => {
+            const record = answersReceived.value[p.id];
+            let isCorrect = false;
+
+            if (record && typeof record.receivedAt === 'number') {
+              // compute timeLeft (in seconds) using host start time
+              const elapsedSec = (record.receivedAt - questionStartAt) / 1000;
+              const timeLeft = Math.max(0, Math.ceil(15 - elapsedSec));
+              if (record.answer === q.answer) {
+                isCorrect = true;
+                if (q.isBonus) {
+                  p.score += 5162129; // special bonus
+                } else {
+                  const speedBonus = Math.floor(timeLeft * 50);
+                  p.score += (100 + speedBonus);
+                }
+              } else {
+                if (!q.isBonus) {
+                  p.score -= 114514; // penalty
+                }
+              }
+            } else {
+              // no submission: treat as incorrect for non-bonus questions
+              if (!q.isBonus) {
+                p.score -= 114514;
+              }
+            }
+
+            // send individual result
+            const conn = playerConns.value.find(c => c.peer === p.id);
+            if (conn) {
+              safeSend(conn, {
+                type: 'Q_RESULT',
+                isCorrect,
+                isBonus: q.isBonus,
+                score: p.score
+              });
+            }
+          });
+
+          // broadcast updated players (scores) as well
+          broadcast({ type: 'PLAYERS_UPDATE', players: players.value.map(p => ({ id: p.id, name: p.name, score: p.score })) });
+        };
+
+        const nextQuestion = () => {
+          if他這是什麼意思
