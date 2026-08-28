@@ -1,30 +1,9 @@
-Direct answer — I reviewed your app and fixed several functional, reliability and security issues (peer ID collisions, trusting client-reported times, connection cleanup, missing error handling, double submissions, broadcasting player list). Below I explain the issues I found and then provide a patched HTML (complete file) you can drop in to replace your current file.
-
-What I changed (summary)
-- Prevented clients from cheating by reporting their own "time": host now timestamps submissions server-side and computes speed bonus from host's question start time.
-- Prevented double submissions: host ignores a second SUBMIT_ANSWER from the same peer for the same question.
-- Connection lifecycle handling: host now reacts to conn.close/error and removes player entries; player handles host disconnection.
-- Broadcast players list: when a player joins or leaves, the host broadcasts PLAYERS_UPDATE so everyone sees current players.
-- Peer initialization error handling: host regenerates room ID / shows console error if PeerJS id is already taken; client handles connection failures.
-- Some UX hardening: trimmed player names, disabled buttons automatically after submit, safety checks for sending to disconnected peers.
-- Minor reactive / implementation corrections and comments (e.g., using answersReceived as ref object consistently).
-- Added questionStart timestamp used by host to compute elapsed time.
-
-Notes / recommendations (next steps)
-- PeerJS requires a signaling server (PeerServer). Running pure PeerJS clients without a signaling server will fail in many environments. Either host your own PeerServer (peerjs-server) or configure a hosted signalling server (and add appropriate options to new Peer(...)). If you plan public use, use a proper server with authentication and TLS.
-- Consider adding basic authentication or a host password for room creation/joining if you expect untrusted players.
-- Consider persisting final leaderboard/scores server-side if you want tamper-proof records (P2P alone is harder to secure).
-- Validate/escape player names server-side if you later store or display them in other contexts (avoid XSS).
-- If you need complete anti-cheat, move answer submission / scoring to a centralized server rather than P2P.
-
-Patched file
-```html name=index.html
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Royal Tea Time 下午茶服務生爭霸戰</title>
+  <title>Royal Tea Time 下休茶服務生爭霸戰</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
@@ -192,8 +171,8 @@ Patched file
         const inputRoomId = ref('');
         const playerName = ref('');
         const players = ref([]);
-        const gameState = ref('lobby'); // lobby, quiz, leaderboard
-        const playerState = ref('waiting'); // waiting, answering, submitted, result, ended
+        const gameState = ref('lobby');
+        const playerState = ref('waiting');
         const currentQIndex = ref(0);
         const timer = ref(15);
         const timerInterval = ref(null);
@@ -205,19 +184,16 @@ Patched file
 
         let peer = null;
         let hostConn = null;
-        const playerConns = ref([]); // array of Peer connections on host
-        const answersReceived = ref({}); // keyed by peer id: {answer, receivedAt}
+        const playerConns = ref([]);
+        const answersReceived = ref({});
 
-        // host-side question starting timestamp (ms)
         let questionStartAt = null;
 
         const currentQ = computed(() => QUESTIONS[currentQIndex.value]);
         const answeredCount = computed(() => Object.keys(answersReceived.value).length);
         const sortedPlayers = computed(() => [...players.value].sort((a, b) => b.score - a.score));
 
-        // --- 主持人端邏輯 ---
         const createPeerWithId = (id) => {
-          // Note: in production, pass Peer options for a PeerServer (host, port, key, secure)
           try {
             return new Peer(id);
           } catch (err) {
@@ -228,101 +204,63 @@ Patched file
 
         const initHost = () => {
           role.value = 'host';
-          // generate id and attempt to create Peer; handle 'unavailable-id' by regenerating once
           const makeNewRoom = () => Math.floor(1000 + Math.random() * 9000).toString();
           roomId.value = makeNewRoom();
           peer = createPeerWithId('rtt-room-' + roomId.value);
 
-          if (!peer) {
-            console.error('建立 Peer 失敗');
-            return;
-          }
-
-          peer.on('open', (id) => {
-            console.log('Host peer open:', id);
-          });
+          if (!peer) return;
 
           peer.on('error', (err) => {
-            console.error('Peer error:', err);
-            // if id already taken, regenerate once and recreate
             if (err.type === 'unavailable-id' || /ID.*already in use/i.test(err.message || '')) {
-              console.warn('房間 ID 已被使用，重新產生房間 ID');
-              // try regenerate
               const newId = makeNewRoom();
               roomId.value = newId;
-              // destroy previous peer if possible, then recreate
-              try { peer.destroy && peer.destroy(); } catch(e){/*ignored*/ }
+              try { peer.destroy && peer.destroy(); } catch(e){}
               peer = createPeerWithId('rtt-room-' + roomId.value);
             }
           });
 
           peer.on('connection', (conn) => {
-            console.log('Incoming conn from', conn.peer);
             conn.on('data', (data) => {
               if (data && data.type === 'JOIN') {
-                // sanitize name
                 const name = (data.name || '').toString().trim().slice(0, 50) || '匿名';
-                // avoid duplicates for display - store by conn.peer
                 if (!players.value.find(p => p.id === conn.peer)) {
                   players.value.push({ id: conn.peer, name, score: 0 });
                 }
                 playerConns.value.push(conn);
-                // ack the new player
                 safeSend(conn, { type: 'JOINED' });
-                // broadcast updated player list to everyone
                 broadcast({ type: 'PLAYERS_UPDATE', players: players.value.map(p => ({ id: p.id, name: p.name, score: p.score })) });
               } else if (data && data.type === 'SUBMIT_ANSWER') {
-                // store server-side timestamp on receipt. ignore repeated submissions from the same peer for this question
                 if (!answersReceived.value[conn.peer]) {
                   answersReceived.value[conn.peer] = {
                     answer: data.answer,
                     receivedAt: Date.now()
                   };
-                } else {
-                  console.log('Duplicate submit ignored from', conn.peer);
                 }
               }
             });
 
-            conn.on('close', () => {
-              console.log('conn closed:', conn.peer);
-              // remove player and connection
-              removePlayer(conn.peer);
-            });
-
-            conn.on('error', (err) => {
-              console.warn('conn error from', conn.peer, err);
-              // remove to keep state clean
-              removePlayer(conn.peer);
-            });
+            conn.on('close', () => removePlayer(conn.peer));
+            conn.on('error', () => removePlayer(conn.peer));
           });
         };
 
         const safeSend = (conn, payload) => {
           try {
             if (conn && conn.open) conn.send(payload);
-          } catch (e) {
-            console.warn('failed to send to', conn && conn.peer, e);
-          }
+          } catch (e) {}
         };
 
         const broadcast = (payload) => {
-          // send to all open connections
-          playerConns.value.forEach(c => {
-            safeSend(c, payload);
-          });
+          playerConns.value.forEach(c => safeSend(c, payload));
         };
 
         const removePlayer = (peerId) => {
           const idx = players.value.findIndex(p => p.id === peerId);
           if (idx !== -1) players.value.splice(idx, 1);
-          // remove connection object(s)
           for (let i = playerConns.value.length - 1; i >= 0; i--) {
             if (playerConns.value[i].peer === peerId) playerConns.value.splice(i, 1);
           }
-          // remove any recorded answer
           if (answersReceived.value[peerId]) delete answersReceived.value[peerId];
-          // broadcast updated players
           broadcast({ type: 'PLAYERS_UPDATE', players: players.value.map(p => ({ id: p.id, name: p.name, score: p.score })) });
         };
 
@@ -336,7 +274,6 @@ Patched file
           showAnswer.value = false;
           answersReceived.value = {};
           timer.value = 15;
-          // mark start time on host
           questionStartAt = Date.now();
 
           broadcast({ type: 'START_Q' });
@@ -356,36 +293,32 @@ Patched file
           showAnswer.value = true;
           const q = currentQ.value;
 
-          // compute results using server-side recorded timestamps
           players.value.forEach(p => {
             const record = answersReceived.value[p.id];
             let isCorrect = false;
 
             if (record && typeof record.receivedAt === 'number') {
-              // compute timeLeft (in seconds) using host start time
               const elapsedSec = (record.receivedAt - questionStartAt) / 1000;
               const timeLeft = Math.max(0, Math.ceil(15 - elapsedSec));
               if (record.answer === q.answer) {
                 isCorrect = true;
                 if (q.isBonus) {
-                  p.score += 5162129; // special bonus
+                  p.score += 5162129;
                 } else {
                   const speedBonus = Math.floor(timeLeft * 50);
                   p.score += (100 + speedBonus);
                 }
               } else {
                 if (!q.isBonus) {
-                  p.score -= 114514; // penalty
+                  p.score -= 114514;
                 }
               }
             } else {
-              // no submission: treat as incorrect for non-bonus questions
               if (!q.isBonus) {
                 p.score -= 114514;
               }
             }
 
-            // send individual result
             const conn = playerConns.value.find(c => c.peer === p.id);
             if (conn) {
               safeSend(conn, {
@@ -397,9 +330,64 @@ Patched file
             }
           });
 
-          // broadcast updated players (scores) as well
           broadcast({ type: 'PLAYERS_UPDATE', players: players.value.map(p => ({ id: p.id, name: p.name, score: p.score })) });
         };
 
         const nextQuestion = () => {
-          if他這是什麼意思
+          if (currentQIndex.value + 1 < QUESTIONS.length) {
+            currentQIndex.value++;
+            startQuestion();
+          } else {
+            gameState.value = 'leaderboard';
+            broadcast({ type: 'GAME_END' });
+          }
+        };
+
+        const joinHost = () => {
+          peer = new Peer();
+          peer.on('open', () => {
+            hostConn = peer.connect('rtt-room-' + inputRoomId.value);
+            
+            hostConn.on('open', () => {
+              hostConn.send({ type: 'JOIN', name: playerName.value });
+            });
+
+            hostConn.on('data', (data) => {
+              if (data.type === 'JOINED') {
+                joined.value = true;
+                playerState.value = 'waiting';
+              } else if (data.type === 'START_Q') {
+                playerState.value = 'answering';
+                submittedThisQuestion.value = false;
+              } else if (data.type === 'Q_RESULT') {
+                playerScore.value = data.score;
+                lastResult.value = { isCorrect: data.isCorrect, isBonus: data.isBonus };
+                playerState.value = 'result';
+              } else if (data.type === 'GAME_END') {
+                playerState.value = 'ended';
+              }
+            });
+          });
+        };
+
+        const submitAnswer = (index) => {
+          if (submittedThisQuestion.value) return;
+          submittedThisQuestion.value = true;
+          playerState.value = 'submitted';
+          hostConn.send({
+            type: 'SUBMIT_ANSWER',
+            answer: index
+          });
+        };
+
+        return {
+          role, roomId, inputRoomId, playerName, players, gameState, playerState,
+          questions: QUESTIONS, currentQIndex, currentQ, timer, showAnswer, joined,
+          playerScore, lastResult, answeredCount, sortedPlayers, submittedThisQuestion,
+          initHost, startGame, revealAnswer, nextQuestion, joinHost, submitAnswer
+        };
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>
