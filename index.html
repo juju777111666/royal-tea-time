@@ -12,6 +12,7 @@
     .gold-gradient { background: linear-gradient(135deg, #bf953f, #fcf6ba, #b38728, #fbf5b7); }
     .retro-green { background-color: #062319; }
     .card-green { background-color: #0d382a; }
+    canvas { touch-action: none; }
   </style>
 </head>
 <body class="retro-green text-emerald-100 min-h-screen font-sans">
@@ -20,13 +21,13 @@
     <!-- 首頁 / 角色選擇 -->
     <div v-if="role === null" class="text-center py-12 space-y-6">
       <h1 class="text-4xl md:text-6xl font-extrabold text-amber-300 tracking-wider drop-shadow-md">🫖 Royal Tea Time</h1>
-      <p class="text-emerald-300/80 text-lg">下午茶服務生爭霸戰</p>
+      <p class="text-emerald-300/80 text-lg md:text-xl">下午茶服務生爭霸戰 / Afternoon Tea Server Battle</p>
       <div class="flex justify-center gap-6 pt-6">
         <button @click="initHost" class="bg-amber-600 hover:bg-amber-500 text-white text-xl font-bold py-4 px-8 rounded-xl shadow-lg transition border border-amber-400/30">
-          我是主持人 (建立房間)
+          我是主持人 (建立房間)<br><span class="text-sm font-normal opacity-90">Host (Create Room)</span>
         </button>
         <button @click="role = 'player'" class="bg-emerald-700 hover:bg-emerald-600 text-white text-xl font-bold py-4 px-8 rounded-xl shadow-lg transition border border-emerald-500/30">
-          我是服務生 (加入房間)
+          我是服務生 (加入房間)<br><span class="text-sm font-normal opacity-90">Server (Join Room)</span>
         </button>
       </div>
     </div>
@@ -35,38 +36,39 @@
     <div v-if="role === 'host'" class="space-y-6">
       <div class="flex justify-between items-center border-b border-emerald-800 pb-4">
         <div>
-          <h2 class="text-2xl font-bold text-amber-300">房號: <span class="card-green border border-amber-400/40 px-3 py-1 rounded text-amber-200 tracking-widest font-mono">{{ roomId }}</span></h2>
-          <p class="text-sm text-emerald-300/70">請服務生輸入此房號加入（目前人數：{{ players.length }} 人）</p>
+          <h2 class="text-2xl font-bold text-amber-300">房號 / Room Code: <span class="card-green border border-amber-400/40 px-3 py-1 rounded text-amber-200 tracking-widest font-mono">{{ roomId }}</span></h2>
+          <p class="text-sm text-emerald-300/70">請服務生輸入此房號加入（目前人數：{{ players.length }} 人）/ Enter code to join (Players: {{ players.length }})</p>
         </div>
         <button v-if="gameState === 'lobby'" @click="startGame" :disabled="players.length === 0" class="bg-amber-400 hover:bg-amber-300 disabled:opacity-50 text-emerald-950 font-extrabold px-6 py-3 rounded-lg shadow-md">
-          開始今日營業 🚀
+          開始今日營業 🚀 / Start Business
         </button>
       </div>
 
-      <!-- 大廳玩家列表 -->
+      <!-- 大廳玩家列表 (顯示畫像) -->
       <div v-if="gameState === 'lobby'" class="card-green p-6 rounded-xl border border-emerald-800">
-        <h3 class="text-lg font-bold mb-4 text-amber-200">已打卡上班的服務生：</h3>
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div v-for="p in players" :key="p.id" class="bg-emerald-900/80 p-3 rounded-lg text-center font-bold border border-emerald-700">
-            🧑‍🍳 {{ p.name }}
+        <h3 class="text-lg font-bold mb-4 text-amber-200">已打卡上班的服務生 / Checked-in Servers：</h3>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div v-for="p in players" :key="p.id" class="bg-emerald-900/80 p-3 rounded-lg text-center font-bold border border-emerald-700 flex flex-col items-center gap-2">
+            <img :src="p.avatar || 'https://api.dicebear.com/7.x/bottts/svg?seed=' + p.name" class="w-16 h-16 bg-white/10 rounded-full p-1 border border-amber-400/30 object-cover">
+            <span>🧑‍🍳 {{ p.name }}</span>
           </div>
         </div>
       </div>
 
-      <!-- 題目畫面 -->
+      <!-- 題目畫面 (帶有客人的獨特大頭照) -->
       <div v-if="gameState === 'quiz'" class="space-y-6">
         <div class="card-green p-6 rounded-xl border border-amber-400/30">
           <div class="flex justify-between items-center mb-4">
             <span class="bg-amber-400/20 text-amber-300 border border-amber-400/40 px-3 py-1 rounded-full text-sm font-bold">
-              {{ currentQ.isBonus ? '🧾 全場唯一加分題／主管考核題' : '💰 普通題 第 ' + (currentQIndex + 1) + ' 題' }}
+              {{ currentQ.isBonus ? '🧾 全場唯一加分題／主管考核題 (Bonus Question)' : '💰 普通題 第 ' + (currentQIndex + 1) + ' 題 (Question ' + (currentQIndex + 1) + ')' }}
             </span>
             <span class="text-2xl font-black text-rose-400">⏱️ {{ timer }}s</span>
           </div>
 
-          <!-- 客人點餐情境提示區 -->
-          <div class="bg-emerald-950/80 p-4 rounded-xl border border-emerald-700/60 mb-6 flex items-start gap-4">
-            <span class="text-4xl">👤</span>
-            <div>
+          <!-- 各異客人點餐區域 -->
+          <div class="bg-emerald-950/80 p-4 rounded-xl border border-emerald-700/60 mb-6 flex items-center gap-4">
+            <img :src="currentQ.avatar" class="w-20 h-20 md:w-24 md:h-24 bg-amber-100/10 rounded-2xl p-1 border-2 border-amber-400/50 object-cover shadow-lg">
+            <div class="flex-1">
               <span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded font-bold uppercase tracking-wider">
                 {{ currentQ.customerType }}
               </span>
@@ -85,27 +87,28 @@
           </div>
         </div>
 
-        <!-- 主持人控制按鈕 -->
+        <!-- 控制按鈕 -->
         <div class="flex justify-between items-center">
-          <div class="text-emerald-300/70">已收到回答：{{ answeredCount }} / {{ players.length }}</div>
-          <button v-if="!showAnswer" @click="revealAnswer" class="bg-emerald-600 hover:bg-emerald-500 px-6 py-2 rounded-lg font-bold text-white">公布答案</button>
+          <div class="text-emerald-300/70">已收到回答 / Answers Received：{{ answeredCount }} / {{ players.length }}</div>
+          <button v-if="!showAnswer" @click="revealAnswer" class="bg-emerald-600 hover:bg-emerald-500 px-6 py-2 rounded-lg font-bold text-white">公布答案 / Reveal Answer</button>
           <button v-else @click="nextQuestion" class="bg-amber-400 hover:bg-amber-300 text-emerald-950 px-6 py-2 rounded-lg font-bold">
-            {{ currentQIndex + 1 < questions.length ? '下一題 😋' : '結算今日收入 💸' }}
+            {{ currentQIndex + 1 < questions.length ? '下一題 😋 / Next Question' : '結算今日收入 💸 / Show Leaderboard' }}
           </button>
         </div>
       </div>
 
-      <!-- 排行榜畫面 -->
+      <!-- 排行榜 (顯示自己畫的頭像) -->
       <div v-if="gameState === 'leaderboard'" class="card-green p-6 rounded-xl space-y-4 border border-amber-400/30">
-        <h2 class="text-3xl font-black text-amber-300 text-center">🏆 今日服務生結算排行榜</h2>
-        <div class="space-y-2">
+        <h2 class="text-3xl font-black text-amber-300 text-center">🏆 今日服務生結算排行榜 / Daily Server Leaderboard</h2>
+        <div class="space-y-3">
           <div v-for="(p, rank) in sortedPlayers" :key="p.id" 
                :class="['flex justify-between items-center p-4 rounded-xl font-bold', 
                         rank === 0 ? 'gold-gradient text-emerald-950 scale-105 shadow-xl' : 'bg-emerald-900/80 border border-emerald-700']">
             <div class="flex items-center gap-3">
               <span class="text-2xl">{{ rank === 0 ? '🥇' : rank === 1 ? '🥈' : rank === 2 ? '🥉' : '#' + (rank + 1) }}</span>
+              <img :src="p.avatar || 'https://api.dicebear.com/7.x/bottts/svg?seed=' + p.name" class="w-12 h-12 rounded-full border border-amber-400/40 bg-black/20 object-cover">
               <span class="text-xl">{{ p.name }}</span>
-              <span v-if="rank === 0" class="bg-emerald-950 text-amber-300 text-xs px-2 py-1 rounded border border-amber-400/40">🎁 獲得能飛體驗卡</span>
+              <span v-if="rank === 0" class="bg-emerald-950 text-amber-300 text-xs px-2 py-1 rounded border border-amber-400/40">🎁 獲得能飛體驗卡 / Flight Pass Prize</span>
             </div>
             <div class="text-xl font-mono">${{ p.score.toLocaleString() }}</div>
           </div>
@@ -115,31 +118,51 @@
 
     <!-- 玩家 (手機端) 介面 -->
     <div v-if="role === 'player'" class="space-y-6">
-      <!-- 登入頁 -->
+      <!-- 登入頁：包含手繪服務生長相畫板 -->
       <div v-if="!joined" class="card-green p-6 rounded-xl space-y-4 max-w-md mx-auto border border-emerald-800">
-        <h2 class="text-2xl font-bold text-amber-300">打卡上班</h2>
+        <h2 class="text-2xl font-bold text-amber-300 text-center">打卡上班 / Clock In</h2>
         <div>
-          <label class="block text-sm text-emerald-300/70 mb-1">房號</label>
+          <label class="block text-sm text-emerald-300/70 mb-1">房號 / Room Code</label>
           <input v-model="inputRoomId" type="text" placeholder="例如：8890" class="w-full bg-emerald-900/80 p-3 rounded-lg border border-emerald-700 text-amber-200 font-mono uppercase">
         </div>
         <div>
-          <label class="block text-sm text-emerald-300/70 mb-1">你的名字📓</label>
-          <input v-model="playerName" type="text" placeholder="請輸入名字" class="w-full bg-emerald-900/80 p-3 rounded-lg border border-emerald-700 text-white">
+          <label class="block text-sm text-emerald-300/70 mb-1">你的名字📓 / Your Name</label>
+          <input v-model="playerName" type="text" placeholder="請輸入名字 / Enter Name" class="w-full bg-emerald-900/80 p-3 rounded-lg border border-emerald-700 text-white">
         </div>
+
+        <!-- 繪製頭像區塊 -->
+        <div>
+          <label class="block text-sm text-emerald-300/70 mb-1">繪製你的服務生肖像 / Draw Your Server Portrait</label>
+          <div class="flex flex-col items-center bg-emerald-950 p-3 rounded-lg border border-emerald-700 space-y-2">
+            <canvas ref="drawCanvas" width="200" height="200" class="bg-white rounded-lg cursor-crosshair touch-none"></canvas>
+            <div class="flex items-center gap-2">
+              <button v-for="c in ['#000000', '#dc2626', '#ca8a04', '#16a34a', '#2563eb']" :key="c" 
+                      @click="penColor = c" 
+                      :style="{ backgroundColor: c }" 
+                      :class="['w-7 h-7 rounded-full border-2', penColor === c ? 'border-amber-300 scale-110' : 'border-transparent']"></button>
+              <button @click="clearCanvas" class="text-xs bg-rose-900/80 text-rose-200 px-2 py-1 rounded border border-rose-700 ml-2">重畫 / Clear</button>
+            </div>
+          </div>
+        </div>
+
         <button @click="joinHost" :disabled="!inputRoomId || !playerName" class="w-full bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-emerald-950 font-bold py-3 rounded-lg shadow-md">
-          連線打卡
+          連線打卡 / Join Game
         </button>
       </div>
 
       <!-- 遊戲進行頁 -->
       <div v-else class="space-y-6">
         <div class="card-green p-4 rounded-xl flex justify-between items-center border border-emerald-800">
-          <span class="font-bold text-emerald-100">🧑‍🍳 {{ playerName }}</span>
-          <span class="font-mono text-amber-300 font-bold">今日收入: ${{ playerScore.toLocaleString() }}</span>
+          <div class="flex items-center gap-3">
+            <img :src="myAvatar" class="w-10 h-10 rounded-full border border-amber-300 bg-white object-cover">
+            <span class="font-bold text-emerald-100">🧑‍🍳 {{ playerName }}</span>
+          </div>
+          <span class="font-mono text-amber-300 font-bold">今日收入 / Income: ${{ playerScore.toLocaleString() }}</span>
         </div>
 
-        <div v-if="playerState === 'waiting'" class="text-center py-16 card-green rounded-xl border border-emerald-800">
+        <div v-if="playerState === 'waiting'" class="text-center py-16 card-green rounded-xl border border-emerald-800 space-y-2">
           <p class="text-xl text-emerald-200/80 animate-pulse">☕ 等待下一位客人到訪</p>
+          <p class="text-xs text-emerald-400/60 font-mono">Waiting for the next guest...</p>
         </div>
 
         <div v-if="playerState === 'answering'" class="grid grid-cols-2 gap-4">
@@ -151,24 +174,29 @@
         </div>
 
         <div v-if="playerState === 'submitted'" class="text-center py-16 card-green rounded-xl space-y-2 border border-emerald-800">
-          <p class="text-2xl font-bold text-amber-300">✓ 已送出餐點！</p>
-          <p class="text-emerald-300/70">請看大螢幕等待公布結果...</p>
+          <p class="text-2xl font-bold text-amber-300">✓ 已送出餐點！ / Order Submitted!</p>
+          <p class="text-emerald-300/70">請看大螢幕等待公布結果... / Please look at the main screen...</p>
         </div>
 
         <div v-if="playerState === 'result'" class="text-center py-12 card-green rounded-xl space-y-4 border border-emerald-800">
-          <div v-if="lastResult.isCorrect" class="text-4xl font-black text-amber-300">🎉 餐點送對了！</div>
-          <div v-else-if="lastResult.isBonus" class="text-2xl font-bold text-amber-200 p-4 border border-amber-400/30 bg-amber-400/10 rounded-xl">
-            😐 主管對於你的表現感到失望
+          <div v-if="lastResult.isCorrect" class="text-3xl md:text-4xl font-black text-amber-300">
+            🎉 餐點送對了！<br><span class="text-lg font-normal opacity-90">Correct Order!</span>
           </div>
-          <div v-else class="text-3xl font-black text-rose-400">
-            😠 客人感到不開心！<br><span class="text-xl font-mono mt-2 block">−114,514</span>
+          <div v-else-if="lastResult.isBonus" class="text-2xl font-bold text-amber-200 p-4 border border-amber-400/30 bg-amber-400/10 rounded-xl space-y-1">
+            <div>😐 主管對於你的表現感到失望</div>
+            <div class="text-sm font-normal opacity-80">Manager is disappointed with your performance</div>
           </div>
-          <p class="text-emerald-300/70 pt-2">等待主持人切換下一題...</p>
+          <div v-else class="text-2xl md:text-3xl font-black text-rose-400 space-y-1">
+            <div>😠 客人感到不開心！</div>
+            <div class="text-sm font-normal opacity-80">Guest is unhappy!</div>
+            <span class="text-xl font-mono mt-2 block text-rose-300">−114,514</span>
+          </div>
+          <p class="text-emerald-300/70 pt-2 text-sm">等待主持人切換下一題... / Waiting for host...</p>
         </div>
 
         <div v-if="playerState === 'ended'" class="text-center py-12 card-green rounded-xl space-y-4 border border-emerald-800">
-          <h2 class="text-3xl font-bold text-amber-300">營業結束！</h2>
-          <p class="text-2xl font-mono">最終今日收入：<span class="text-amber-200">${{ playerScore.toLocaleString() }}</span></p>
+          <h2 class="text-3xl font-bold text-amber-300">營業結束！ / Service Ended!</h2>
+          <p class="text-2xl font-mono">最終今日收入 / Total Income：<br><span class="text-amber-200 text-3xl font-bold">${{ playerScore.toLocaleString() }}</span></p>
         </div>
       </div>
     </div>
@@ -176,33 +204,37 @@
   </div>
 
   <script>
-    const { createApp, ref, computed } = Vue;
+    const { createApp, ref, computed, onMounted, nextTick } = Vue;
 
-    // 客人點餐情境題庫 (包含指定題目與打亂順序，全部帶有客人口吻)
+    // 每個客人都有獨特的視覺頭像 Avatar (DiceBear API 產生)
     const QUESTIONS = [
       { 
-        customerType: "顧客點餐禮儀",
+        customerType: "Customer Etiquette / 顧客點餐禮儀",
+        avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=LadyGrace&accessories=glasses&facialHairProbability=0",
         question: "What should guests do during afternoon tea in our restaurant?", 
         options: ["Talking out loud", "Be graceful and polite", "Take actions before host’s signals", "Leave without saying goodbye"], 
         answer: 1, 
         isBonus: false 
       },
       { 
-        customerType: "貴族客人詢問",
+        customerType: "Noble Guest / 貴族客人詢問",
+        avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=LordArthur&top=topHat&facialHairProbability=100",
         question: "Excuse me, what material did noble guests historically use for their tea cups?", 
         options: ["metal", "porcelain", "wood", "plastic"], 
         answer: 1, 
         isBonus: false 
       },
       { 
-        customerType: "客人餐點順序",
+        customerType: "Order Sequence / 客人餐點順序",
+        avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=HungryGuest&mouth=smile,openSmile",
         question: "I am ready to order! What would guests usually have first during traditional afternoon tea?", 
         options: ["Tea", "Cakes and dessert", "Sandwiches", "Scones"], 
         answer: 2, 
         isBonus: false 
       },
       { 
-        customerType: "顧客飲茶姿勢",
+        customerType: "Tea Etiquette / 顧客飲茶姿勢",
+        avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=FancyPants&eyebrows=raisedExcited",
         question: "In traditional British tea etiquette, what does sticking your pinky finger out while drinking tea actually mean?", 
         options: [
           "You are ultra-fancy, super classy, and clearly born a royal!", 
@@ -214,7 +246,8 @@
         isBonus: false 
       },
       { 
-        customerType: "小客人 George 哭鬧中",
+        customerType: "Little Guest / 小客人 George 哭鬧中",
+        avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=LittleGeorge&top=shortHair&eyes=cry",
         question: 'George: "Oh no! My DINOSAUR is broken!" What should a polite British Papa say to comfort him?', 
         options: [
           "Shall I put the kettle on?", 
@@ -226,14 +259,16 @@
         isBonus: false 
       },
       { 
-        customerType: "社交宴會客人口頭詢問",
+        customerType: "Social Party Guest / 社交宴會客人",
+        avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Socialite&hairColor=blonde",
         question: "What would proper guests do when attending a formal social activity?", 
         options: ["Use social media all the time", "Take beautiful pictures non-stop", "Invite people politely to their home", "Play games loudly on their phone"], 
         answer: 2, 
         isBonus: false 
       },
       { 
-        customerType: "🧾 全場唯一加分題 / 主管考核題",
+        customerType: "🧾 Bonus Question / 全場唯一加分題（主管考核題）",
+        avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=QueenCatherine&top=hijab&accessories=eyepatch",
         question: "Who made drinking tea popular among the nobles in 1662?", 
         options: ["Kass", "civilian", "Catherine of Braganza", "Queen Elizabeth I"], 
         answer: 2, 
@@ -259,24 +294,71 @@
         const lastResult = ref({ isCorrect: false, isBonus: false });
         const submittedThisQuestion = ref(false);
 
+        // 繪圖板變數
+        const drawCanvas = ref(null);
+        const penColor = ref('#000000');
+        const myAvatar = ref('');
+        let ctx = null;
+        let isDrawing = false;
+
         let peer = null;
         let hostConn = null;
         const playerConns = ref([]);
         const answersReceived = ref({});
-
         let questionStartAt = null;
 
         const currentQ = computed(() => QUESTIONS[currentQIndex.value]);
         const answeredCount = computed(() => Object.keys(answersReceived.value).length);
         const sortedPlayers = computed(() => [...players.value].sort((a, b) => b.score - a.score));
 
-        const createPeerWithId = (id) => {
-          try {
-            return new Peer(id);
-          } catch (err) {
-            console.error('Peer creation failed', err);
-            return null;
+        // 初始化畫畫板事件
+        const initCanvas = () => {
+          if (!drawCanvas.value) return;
+          const canvas = drawCanvas.value;
+          ctx = canvas.getContext('2d');
+          ctx.lineWidth = 4;
+          ctx.lineCap = 'round';
+
+          const getPos = (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return { x: clientX - rect.left, y: clientY - rect.top };
+          };
+
+          const startDraw = (e) => {
+            isDrawing = true;
+            const pos = getPos(e);
+            ctx.beginPath();
+            ctx.moveTo(pos.x, pos.y);
+          };
+
+          const moveDraw = (e) => {
+            if (!isDrawing) return;
+            const pos = getPos(e);
+            ctx.strokeStyle = penColor.value;
+            ctx.lineTo(pos.x, pos.y);
+            ctx.stroke();
+          };
+
+          const stopDraw = () => { isDrawing = false; };
+
+          canvas.addEventListener('mousedown', startDraw);
+          canvas.addEventListener('mousemove', moveDraw);
+          canvas.addEventListener('mouseup', stopDraw);
+          canvas.addEventListener('touchstart', startDraw);
+          canvas.addEventListener('touchmove', moveDraw);
+          canvas.addEventListener('touchend', stopDraw);
+        };
+
+        const clearCanvas = () => {
+          if (ctx && drawCanvas.value) {
+            ctx.clearRect(0, 0, drawCanvas.value.width, drawCanvas.value.height);
           }
+        };
+
+        const createPeerWithId = (id) => {
+          try { return new Peer(id); } catch (err) { return null; }
         };
 
         const initHost = () => {
@@ -301,18 +383,16 @@
               conn.on('data', (data) => {
                 if (data && data.type === 'JOIN') {
                   const name = (data.name || '').toString().trim().slice(0, 50) || '匿名';
+                  const avatar = data.avatar || '';
                   if (!players.value.find(p => p.id === conn.peer)) {
-                    players.value.push({ id: conn.peer, name, score: 0 });
+                    players.value.push({ id: conn.peer, name, score: 0, avatar });
                   }
                   playerConns.value.push(conn);
                   safeSend(conn, { type: 'JOINED' });
-                  broadcast({ type: 'PLAYERS_UPDATE', players: players.value.map(p => ({ id: p.id, name: p.name, score: p.score })) });
+                  broadcast({ type: 'PLAYERS_UPDATE', players: players.value.map(p => ({ id: p.id, name: p.name, score: p.score, avatar: p.avatar })) });
                 } else if (data && data.type === 'SUBMIT_ANSWER') {
                   if (!answersReceived.value[conn.peer]) {
-                    answersReceived.value[conn.peer] = {
-                      answer: data.answer,
-                      receivedAt: Date.now()
-                    };
+                    answersReceived.value[conn.peer] = { answer: data.answer, receivedAt: Date.now() };
                   }
                 }
               });
@@ -326,9 +406,7 @@
         };
 
         const safeSend = (conn, payload) => {
-          try {
-            if (conn && conn.open) conn.send(payload);
-          } catch (e) {}
+          try { if (conn && conn.open) conn.send(payload); } catch (e) {}
         };
 
         const broadcast = (payload) => {
@@ -342,13 +420,10 @@
             if (playerConns.value[i].peer === peerId) playerConns.value.splice(i, 1);
           }
           if (answersReceived.value[peerId]) delete answersReceived.value[peerId];
-          broadcast({ type: 'PLAYERS_UPDATE', players: players.value.map(p => ({ id: p.id, name: p.name, score: p.score })) });
+          broadcast({ type: 'PLAYERS_UPDATE', players: players.value.map(p => ({ id: p.id, name: p.name, score: p.score, avatar: p.avatar })) });
         };
 
-        const startGame = () => {
-          currentQIndex.value = 0;
-          startQuestion();
-        };
+        const startGame = () => { currentQIndex.value = 0; startQuestion(); };
 
         const startQuestion = () => {
           gameState.value = 'quiz';
@@ -356,16 +431,11 @@
           answersReceived.value = {};
           timer.value = 15;
           questionStartAt = Date.now();
-
           broadcast({ type: 'START_Q' });
 
           clearInterval(timerInterval.value);
           timerInterval.value = setInterval(() => {
-            if (timer.value > 0) {
-              timer.value--;
-            } else {
-              revealAnswer();
-            }
+            if (timer.value > 0) { timer.value--; } else { revealAnswer(); }
           }, 1000);
         };
 
@@ -383,35 +453,22 @@
               const timeLeft = Math.max(0, Math.ceil(15 - elapsedSec));
               if (record.answer === q.answer) {
                 isCorrect = true;
-                if (q.isBonus) {
-                  p.score += 5162129;
-                } else {
-                  const speedBonus = Math.floor(timeLeft * 50);
-                  p.score += (100 + speedBonus);
-                }
+                if (q.isBonus) { p.score += 5162129; } 
+                else { p.score += (100 + Math.floor(timeLeft * 50)); }
               } else {
-                if (!q.isBonus) {
-                  p.score -= 114514;
-                }
+                if (!q.isBonus) p.score -= 114514;
               }
             } else {
-              if (!q.isBonus) {
-                p.score -= 114514;
-              }
+              if (!q.isBonus) p.score -= 114514;
             }
 
             const conn = playerConns.value.find(c => c.peer === p.id);
             if (conn) {
-              safeSend(conn, {
-                type: 'Q_RESULT',
-                isCorrect,
-                isBonus: q.isBonus,
-                score: p.score
-              });
+              safeSend(conn, { type: 'Q_RESULT', isCorrect, isBonus: q.isBonus, score: p.score });
             }
           });
 
-          broadcast({ type: 'PLAYERS_UPDATE', players: players.value.map(p => ({ id: p.id, name: p.name, score: p.score })) });
+          broadcast({ type: 'PLAYERS_UPDATE', players: players.value.map(p => ({ id: p.id, name: p.name, score: p.score, avatar: p.avatar })) });
         };
 
         const nextQuestion = () => {
@@ -425,12 +482,21 @@
         };
 
         const joinHost = () => {
+          // 抓取畫板轉換成圖片
+          if (drawCanvas.value) {
+            myAvatar.value = drawCanvas.value.toDataURL('image/png');
+          }
+
           peer = new Peer();
           peer.on('open', () => {
             hostConn = peer.connect('rtt-room-' + inputRoomId.value.trim());
             
             hostConn.on('open', () => {
-              hostConn.send({ type: 'JOIN', name: playerName.value });
+              hostConn.send({ 
+                type: 'JOIN', 
+                name: playerName.value,
+                avatar: myAvatar.value
+              });
             });
 
             hostConn.on('data', (data) => {
@@ -455,16 +521,21 @@
           if (submittedThisQuestion.value) return;
           submittedThisQuestion.value = true;
           playerState.value = 'submitted';
-          hostConn.send({
-            type: 'SUBMIT_ANSWER',
-            answer: index
-          });
+          hostConn.send({ type: 'SUBMIT_ANSWER', answer: index });
         };
+
+        // 當選擇 role = 'player' 時初始化畫板
+        Vue.watch(role, (newVal) => {
+          if (newVal === 'player') {
+            nextTick(() => { initCanvas(); });
+          }
+        });
 
         return {
           role, roomId, inputRoomId, playerName, players, gameState, playerState,
           questions: QUESTIONS, currentQIndex, currentQ, timer, showAnswer, joined,
           playerScore, lastResult, answeredCount, sortedPlayers, submittedThisQuestion,
+          drawCanvas, penColor, myAvatar, clearCanvas,
           initHost, startGame, revealAnswer, nextQuestion, joinHost, submitAnswer
         };
       }
