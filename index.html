@@ -17,30 +17,33 @@
 <body class="retro-green text-emerald-100 min-h-screen font-sans">
   <div id="app" v-cloak class="max-w-4xl mx-auto p-4">
 
+    <!-- 首頁 / 角色選擇 -->
     <div v-if="role === null" class="text-center py-12 space-y-6">
       <h1 class="text-4xl md:text-6xl font-extrabold text-amber-300 tracking-wider drop-shadow-md">🫖 Royal Tea Time</h1>
-      <p class="text-emerald-300/80 text-lg">英式下午茶打工服務生爭霸戰</p>
+      <p class="text-emerald-300/80 text-lg">下午茶服務生爭霸戰</p>
       <div class="flex justify-center gap-6 pt-6">
         <button @click="initHost" class="bg-amber-600 hover:bg-amber-500 text-white text-xl font-bold py-4 px-8 rounded-xl shadow-lg transition border border-amber-400/30">
-          我是主持人 (建立大螢幕)
+          我是主持人 (建立房間)
         </button>
         <button @click="role = 'player'" class="bg-emerald-700 hover:bg-emerald-600 text-white text-xl font-bold py-4 px-8 rounded-xl shadow-lg transition border border-emerald-500/30">
-          我是服務生 (加入遊戲)
+          我是服務生 (加入房間)
         </button>
       </div>
     </div>
 
+    <!-- 主持人 (大螢幕) 介面 -->
     <div v-if="role === 'host'" class="space-y-6">
       <div class="flex justify-between items-center border-b border-emerald-800 pb-4">
         <div>
-          <h2 class="text-2xl font-bold text-amber-300">大廳房間 Code: <span class="card-green border border-amber-400/40 px-3 py-1 rounded text-amber-200 tracking-widest font-mono">{{ roomId }}</span></h2>
-          <p class="text-sm text-emerald-300/70">請玩家輸入此 Code 加入房間（目前人數：{{ players.length }} 人）</p>
+          <h2 class="text-2xl font-bold text-amber-300">房號: <span class="card-green border border-amber-400/40 px-3 py-1 rounded text-amber-200 tracking-widest font-mono">{{ roomId }}</span></h2>
+          <p class="text-sm text-emerald-300/70">請服務生輸入此房號加入（目前人數：{{ players.length }} 人）</p>
         </div>
         <button v-if="gameState === 'lobby'" @click="startGame" :disabled="players.length === 0" class="bg-amber-400 hover:bg-amber-300 disabled:opacity-50 text-emerald-950 font-extrabold px-6 py-3 rounded-lg shadow-md">
           開始今日營業 🚀
         </button>
       </div>
 
+      <!-- 大廳玩家列表 -->
       <div v-if="gameState === 'lobby'" class="card-green p-6 rounded-xl border border-emerald-800">
         <h3 class="text-lg font-bold mb-4 text-amber-200">已打卡上班的服務生：</h3>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -50,6 +53,7 @@
         </div>
       </div>
 
+      <!-- 題目畫面 -->
       <div v-if="gameState === 'quiz'" class="space-y-6">
         <div class="card-green p-6 rounded-xl border border-amber-400/30">
           <div class="flex justify-between items-center mb-4">
@@ -58,25 +62,40 @@
             </span>
             <span class="text-2xl font-black text-rose-400">⏱️ {{ timer }}s</span>
           </div>
-          <h3 class="text-2xl font-bold mb-6 text-emerald-100">{{ currentQ.question }}</h3>
+
+          <!-- 客人點餐情境提示區 -->
+          <div class="bg-emerald-950/80 p-4 rounded-xl border border-emerald-700/60 mb-6 flex items-start gap-4">
+            <span class="text-4xl">👤</span>
+            <div>
+              <span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded font-bold uppercase tracking-wider">
+                {{ currentQ.customerType }}
+              </span>
+              <p class="text-xl md:text-2xl font-bold mt-1 text-amber-100">"{{ currentQ.question }}"</p>
+            </div>
+          </div>
+
+          <!-- 選項區域 -->
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div v-for="(opt, idx) in currentQ.options" :key="idx" 
-                 :class="['p-4 rounded-xl border font-semibold text-lg transition', 
+                 :class="['p-4 rounded-xl border font-semibold text-base md:text-lg transition flex items-start gap-2', 
                           showAnswer && idx === currentQ.answer ? 'bg-amber-500 border-amber-300 text-emerald-950 font-bold' : 'bg-emerald-900/60 border-emerald-700/80']">
-              {{ String.fromCharCode(65 + idx) }}. {{ opt }}
+              <span class="font-mono font-bold">{{ String.fromCharCode(65 + idx) }}.</span>
+              <span>{{ opt }}</span>
             </div>
           </div>
         </div>
 
+        <!-- 主持人控制按鈕 -->
         <div class="flex justify-between items-center">
           <div class="text-emerald-300/70">已收到回答：{{ answeredCount }} / {{ players.length }}</div>
           <button v-if="!showAnswer" @click="revealAnswer" class="bg-emerald-600 hover:bg-emerald-500 px-6 py-2 rounded-lg font-bold text-white">公布答案</button>
           <button v-else @click="nextQuestion" class="bg-amber-400 hover:bg-amber-300 text-emerald-950 px-6 py-2 rounded-lg font-bold">
-            {{ currentQIndex + 1 < questions.length ? '下一題 👉' : '結算今日收入 🏆' }}
+            {{ currentQIndex + 1 < questions.length ? '下一題 😋' : '結算今日收入 💸' }}
           </button>
         </div>
       </div>
 
+      <!-- 排行榜畫面 -->
       <div v-if="gameState === 'leaderboard'" class="card-green p-6 rounded-xl space-y-4 border border-amber-400/30">
         <h2 class="text-3xl font-black text-amber-300 text-center">🏆 今日服務生結算排行榜</h2>
         <div class="space-y-2">
@@ -86,7 +105,7 @@
             <div class="flex items-center gap-3">
               <span class="text-2xl">{{ rank === 0 ? '🥇' : rank === 1 ? '🥈' : rank === 2 ? '🥉' : '#' + (rank + 1) }}</span>
               <span class="text-xl">{{ p.name }}</span>
-              <span v-if="rank === 0" class="bg-emerald-950 text-amber-300 text-xs px-2 py-1 rounded border border-amber-400/40">🎁 獲得飛翔體驗卡一張</span>
+              <span v-if="rank === 0" class="bg-emerald-950 text-amber-300 text-xs px-2 py-1 rounded border border-amber-400/40">🎁 獲得能飛體驗卡</span>
             </div>
             <div class="text-xl font-mono">${{ p.score.toLocaleString() }}</div>
           </div>
@@ -94,22 +113,25 @@
       </div>
     </div>
 
+    <!-- 玩家 (手機端) 介面 -->
     <div v-if="role === 'player'" class="space-y-6">
+      <!-- 登入頁 -->
       <div v-if="!joined" class="card-green p-6 rounded-xl space-y-4 max-w-md mx-auto border border-emerald-800">
         <h2 class="text-2xl font-bold text-amber-300">打卡上班</h2>
         <div>
-          <label class="block text-sm text-emerald-300/70 mb-1">房間 Code</label>
-          <input v-model="inputRoomId" type="text" placeholder="例如：7777777" class="w-full bg-emerald-900/80 p-3 rounded-lg border border-emerald-700 text-amber-200 font-mono uppercase">
+          <label class="block text-sm text-emerald-300/70 mb-1">房號</label>
+          <input v-model="inputRoomId" type="text" placeholder="例如：8890" class="w-full bg-emerald-900/80 p-3 rounded-lg border border-emerald-700 text-amber-200 font-mono uppercase">
         </div>
         <div>
-          <label class="block text-sm text-emerald-300/70 mb-1">服務生暱稱</label>
-          <input v-model="playerName" type="text" placeholder="你的名字" class="w-full bg-emerald-900/80 p-3 rounded-lg border border-emerald-700 text-white">
+          <label class="block text-sm text-emerald-300/70 mb-1">你的名字📓</label>
+          <input v-model="playerName" type="text" placeholder="請輸入名字" class="w-full bg-emerald-900/80 p-3 rounded-lg border border-emerald-700 text-white">
         </div>
         <button @click="joinHost" :disabled="!inputRoomId || !playerName" class="w-full bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-emerald-950 font-bold py-3 rounded-lg shadow-md">
           連線打卡
         </button>
       </div>
 
+      <!-- 遊戲進行頁 -->
       <div v-else class="space-y-6">
         <div class="card-green p-4 rounded-xl flex justify-between items-center border border-emerald-800">
           <span class="font-bold text-emerald-100">🧑‍🍳 {{ playerName }}</span>
@@ -117,7 +139,7 @@
         </div>
 
         <div v-if="playerState === 'waiting'" class="text-center py-16 card-green rounded-xl border border-emerald-800">
-          <p class="text-xl text-emerald-200/80 animate-pulse">☕ 等待主持人開始/下一題...</p>
+          <p class="text-xl text-emerald-200/80 animate-pulse">☕ 等待下一位客人到訪</p>
         </div>
 
         <div v-if="playerState === 'answering'" class="grid grid-cols-2 gap-4">
@@ -129,19 +151,19 @@
         </div>
 
         <div v-if="playerState === 'submitted'" class="text-center py-16 card-green rounded-xl space-y-2 border border-emerald-800">
-          <p class="text-2xl font-bold text-amber-300">✓ 已送出作答！</p>
+          <p class="text-2xl font-bold text-amber-300">✓ 已送出餐點！</p>
           <p class="text-emerald-300/70">請看大螢幕等待公布結果...</p>
         </div>
 
         <div v-if="playerState === 'result'" class="text-center py-12 card-green rounded-xl space-y-4 border border-emerald-800">
-          <div v-if="lastResult.isCorrect" class="text-5xl font-black text-amber-300">🎉 答對了！</div>
+          <div v-if="lastResult.isCorrect" class="text-4xl font-black text-amber-300">🎉 餐點送對了！</div>
           <div v-else-if="lastResult.isBonus" class="text-2xl font-bold text-amber-200 p-4 border border-amber-400/30 bg-amber-400/10 rounded-xl">
             😐 主管對於你的表現感到失望
           </div>
           <div v-else class="text-3xl font-black text-rose-400">
-            💸 答錯扣款！<br><span class="text-xl font-mono">−114,514</span>
+            😠 客人感到不開心！<br><span class="text-xl font-mono mt-2 block">−114,514</span>
           </div>
-          <p class="text-emerald-300/70">等待主持人切換下一題...</p>
+          <p class="text-emerald-300/70 pt-2">等待主持人切換下一題...</p>
         </div>
 
         <div v-if="playerState === 'ended'" class="text-center py-12 card-green rounded-xl space-y-4 border border-emerald-800">
@@ -156,21 +178,74 @@
   <script>
     const { createApp, ref, computed } = Vue;
 
+    // 客人點餐情境題庫 (包含指定題目與打亂順序，全部帶有客人口吻)
     const QUESTIONS = [
-      { question: "【禮儀型】在英國傳統禮儀中，喝茶時翹起小指會被視為？", options: ["極高優雅的展現", "愛作秀沒禮貌的大禁忌", "暗示茶溫剛好", "讚賞茶葉品質"], answer: 1, isBonus: false },
-      { question: "【歷史型】18 世紀平民在喝茶時習慣先倒冷牛奶（MIF）的主要原因是？", options: ["讓顏色勻稱", "平民瓷器品質差，直倒熱茶會爆裂", "防止牛奶結塊", "節省茶葉錢"], answer: 1, isBonus: false },
-      { question: "【美食型】傳統英式下午茶的正確食用順序為？", options: ["司康→三明治→糕點→茶", "茶→三明治→司康→精緻糕點", "精緻糕點→司康→三明治→茶", "三明治→茶→糕點→司康"], answer: 1, isBonus: false },
-      { question: "【禮儀型】享用司康（Scone）時，符合禮儀的吃法是？", options: ["用牛排刀對半切開", "用手直接掰開", "整顆大口咬下", "用叉子將司康搗碎"], answer: 1, isBonus: false },
-      { question: "【歷史型】1784 年英國政府採取何項政策讓平民也能買得起真茶？", options: ["禁止荷蘭船隻進港", "對茶葉進行斷崖式減稅 (119% 降至 12.5%)", "嚴懲賣二手茶的僕人", "免費發放茶葉"], answer: 1, isBonus: false },
-      { question: "【刁鑽型】工業革命期間工人大量飲用加糖茶的核心原因是？", options: ["模仿貴族風尚", "咖啡因提神加糖快速補充工作熱量", "當時地下水有毒", "工廠強制發放"], answer: 1, isBonus: false },
-      { question: "【🧾 全場唯一加分題】葡萄牙 Princess Catherine 在 1662 年對英國茶文化帶來什麼關鍵影響？", options: ["將中國茶與宮廷飲茶習慣帶入英國", "建立印度阿薩姆官方商路", "發明司康加果醬組合", "統一茶葉市場價格"], answer: 0, isBonus: true }
+      { 
+        customerType: "顧客點餐禮儀",
+        question: "What should guests do during afternoon tea in our restaurant?", 
+        options: ["Talking out loud", "Be graceful and polite", "Take actions before host’s signals", "Leave without saying goodbye"], 
+        answer: 1, 
+        isBonus: false 
+      },
+      { 
+        customerType: "貴族客人詢問",
+        question: "Excuse me, what material did noble guests historically use for their tea cups?", 
+        options: ["metal", "porcelain", "wood", "plastic"], 
+        answer: 1, 
+        isBonus: false 
+      },
+      { 
+        customerType: "客人餐點順序",
+        question: "I am ready to order! What would guests usually have first during traditional afternoon tea?", 
+        options: ["Tea", "Cakes and dessert", "Sandwiches", "Scones"], 
+        answer: 2, 
+        isBonus: false 
+      },
+      { 
+        customerType: "顧客飲茶姿勢",
+        question: "In traditional British tea etiquette, what does sticking your pinky finger out while drinking tea actually mean?", 
+        options: [
+          "You are ultra-fancy, super classy, and clearly born a royal!", 
+          "Your pinky finger is overheating and urgently needs some cool air.", 
+          "You are being snobbish, trying too hard to get attention, and showing bad manners!", 
+          "You are secretly trying to challenge the person sitting across from you to a pinky promise."
+        ], 
+        answer: 2, 
+        isBonus: false 
+      },
+      { 
+        customerType: "小客人 George 哭鬧中",
+        question: 'George: "Oh no! My DINOSAUR is broken!" What should a polite British Papa say to comfort him?', 
+        options: [
+          "Shall I put the kettle on?", 
+          "Shall I fight the rain?", 
+          "Shall I buy a new phone for you?", 
+          "Shall I call the principal?"
+        ], 
+        answer: 0, 
+        isBonus: false 
+      },
+      { 
+        customerType: "社交宴會客人口頭詢問",
+        question: "What would proper guests do when attending a formal social activity?", 
+        options: ["Use social media all the time", "Take beautiful pictures non-stop", "Invite people politely to their home", "Play games loudly on their phone"], 
+        answer: 2, 
+        isBonus: false 
+      },
+      { 
+        customerType: "🧾 全場唯一加分題 / 主管考核題",
+        question: "Who made drinking tea popular among the nobles in 1662?", 
+        options: ["Kass", "civilian", "Catherine of Braganza", "Queen Elizabeth I"], 
+        answer: 2, 
+        isBonus: true 
+      }
     ];
 
     createApp({
       setup() {
         const role = ref(null);
-        const roomId = ref('7777777');
-        const inputRoomId = ref('7777777');
+        const roomId = ref('');
+        const inputRoomId = ref('');
         const playerName = ref('');
         const players = ref([]);
         const gameState = ref('lobby');
@@ -206,19 +281,19 @@
 
         const initHost = () => {
           role.value = 'host';
-          let attempt = 0;
-          const targetId = '7777777';
+          const makeNewRoom = () => Math.floor(1000 + Math.random() * 9000).toString();
+          roomId.value = makeNewRoom();
           
           const tryConnect = (id) => {
-            roomId.value = id;
             peer = createPeerWithId('rtt-room-' + id);
             if (!peer) return;
 
             peer.on('error', (err) => {
               if (err.type === 'unavailable-id' || /ID.*already in use/i.test(err.message || '')) {
-                attempt++;
+                const newId = makeNewRoom();
+                roomId.value = newId;
                 try { peer.destroy && peer.destroy(); } catch(e){}
-                tryConnect(targetId + '-' + attempt);
+                tryConnect(newId);
               }
             });
 
@@ -247,7 +322,7 @@
             });
           };
 
-          tryConnect(targetId);
+          tryConnect(roomId.value);
         };
 
         const safeSend = (conn, payload) => {
@@ -352,7 +427,7 @@
         const joinHost = () => {
           peer = new Peer();
           peer.on('open', () => {
-            hostConn = peer.connect('rtt-room-' + inputRoomId.value);
+            hostConn = peer.connect('rtt-room-' + inputRoomId.value.trim());
             
             hostConn.on('open', () => {
               hostConn.send({ type: 'JOIN', name: playerName.value });
