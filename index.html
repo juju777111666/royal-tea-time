@@ -1,368 +1,543 @@
-<!doctype html>
-<html lang="zh-Hant">
+<!DOCTYPE html>
+<html lang="zh-TW">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Royal Tea Time - 範例</title>
-<style>
-  :root { --ui-font: 18px; --presenter-font: 34px; }
-  body { font-family: "Noto Sans TC", Arial, sans-serif; font-size: var(--ui-font); margin: 0; padding: 16px; }
-  /* 開場 modal */
-  .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; z-index:1000; }
-  .modal .card { background: #fff; padding: 20px; border-radius: 8px; max-width:640px; width:90%; box-shadow:0 8px 24px rgba(0,0,0,0.2); }
-  .dialogue p { margin: 8px 0; }
-  .dialogue .role { font-weight:700; margin-right:6px; }
-
-  /* 題目區 */
-  .question { display:flex; gap:16px; align-items:flex-start; margin: 20px 0; }
-  .photo { width:160px; height:120px; background:#f5f5f5; border:1px solid #ddd; display:flex; align-items:center; justify-content:center; overflow:hidden; }
-  .photo img { width:100%; height:100%; object-fit:cover; }
-  .qbody { flex:1; }
-  .choices button { display:block; margin:8px 0; padding:10px; width:100%; font-size:1rem; }
-
-  /* 回答反饋 */
-  .feedback { margin-top:12px; padding:10px; border-radius:6px; display:none; }
-  .feedback.correct { background:#e6ffef; border:1px solid #8de0b3; color:#006a3d; display:block; }
-  .feedback.wrong { background:#fff0f0; border:1px solid #f0a3a3; color:#8a1b1b; display:block; }
-
-  /* presenter 模式（投影） */
-  .presenter-mode { font-size: var(--presenter-font); padding: 48px; }
-  .presenter-mode .photo { width:260px; height:180px; }
-  .toolbar { display:flex; gap:8px; margin-bottom:10px; }
-  .hidden { display:none !important; }
-
-  /* 隱藏用 */
-  .sr-only { position:absolute; left:-9999px; top:auto; width:1px; height:1px; overflow:hidden; }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Royal Tea Time 下午茶服務生爭霸戰</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+  <style>
+    [v-cloak] { display: none; }
+    .gold-gradient { background: linear-gradient(135deg, #bf953f, #fcf6ba, #b38728, #fbf5b7); }
+    .retro-green { background-color: #062319; }
+    .card-green { background-color: #0d382a; }
+    canvas { touch-action: none; }
+  </style>
 </head>
-<body>
+<body class="retro-green text-emerald-100 min-h-screen font-sans">
+  <div id="app" v-cloak class="max-w-4xl mx-auto p-4">
 
-<!-- 工具列（可在畫面上控制投影模式 / 字體大小） -->
-<div class="toolbar" id="toolbar">
-  <button id="togglePresenter">切換投影模式</button>
-  <label>投影字體大小
-    <input id="fontRange" type="range" min="24" max="60" value="34" />
-  </label>
-</div>
-
-<!-- 開場情境對話（遊戲開始前顯示） -->
-<div id="startModal" class="modal" aria-hidden="false">
-  <div class="card">
-    <div class="dialogue">
-      <p><span class="role">服務生：</span>下午好，尊貴的客人。很榮幸為您送上今日的英式下午茶。</p>
-      <p><span class="role">豬媽媽：</span>聽起來很棒，請幫我倒一杯茶吧。</p>
-      <p><span class="role">服務生：</span>榮幸之至。</p>
-    </div>
-    <div style="text-align:right; margin-top:12px;">
-      <button id="startBtn">開始遊戲</button>
-    </div>
-  </div>
-</div>
-
-<!-- 問題時顯示的客人/角色對話 modal（每題開始時出現） -->
-<div id="questionModal" class="modal" style="display:none;" aria-hidden="true">
-  <div class="card">
-    <div id="questionModalContent" class="dialogue">
-      <!-- 由 JS 注入角色與台詞 -->
-    </div>
-    <div style="text-align:right; margin-top:12px;">
-      <button id="closeQuestionModal">看題目</button>
-    </div>
-  </div>
-</div>
-
-<!-- 題目示範（如果你的頁面有題目清單，將下面 template 用程式動態渲染） -->
-<div id="game">
-  <!-- Q1 -->
-  <div class="question" data-index="0">
-    <div class="photo">
-      <img src="images/q1.png" alt="Q1 圖片（可替換為佩佩豬圖）" />
-    </div>
-    <div class="qbody">
-      <h2>Q1｜Afternoon Tea Etiquette</h2>
-      <p><strong>角色：Mummy Pig 🐷</strong></p>
-      <p class="role-lines">“Now, everyone, afternoon tea is a very special occasion. We must remember our manners!”</p>
-      <div class="qtext"><strong>Question</strong><br>What should they do during afternoon tea?</div>
-      <div class="choices">
-        <button data-correct="false">A. Talking out loud</button>
-        <button data-correct="true">B. Be graceful and polite ✅</button>
-        <button data-correct="false">C. Take actions before the host’s signals</button>
+    <!-- 首頁 / 角色選擇 -->
+    <div v-if="role === null" class="text-center py-12 space-y-6">
+      <h1 class="text-4xl md:text-6xl font-extrabold text-amber-300 tracking-wider drop-shadow-md">🫖 Royal Tea Time</h1>
+      <p class="text-emerald-300/80 text-lg md:text-xl">下午茶服務生爭霸戰 / Afternoon Tea Server Battle</p>
+      <div class="flex justify-center gap-6 pt-6">
+        <button @click="initHost" class="bg-amber-600 hover:bg-amber-500 text-white text-xl font-bold py-4 px-8 rounded-xl shadow-lg transition border border-amber-400/30">
+          我是主持人 (建立房間)<br><span class="text-sm font-normal opacity-90">Host (Create Room)</span>
+        </button>
+        <button @click="role = 'player'" class="bg-emerald-700 hover:bg-emerald-600 text-white text-xl font-bold py-4 px-8 rounded-xl shadow-lg transition border border-emerald-500/30">
+          我是服務生 (加入房間)<br><span class="text-sm font-normal opacity-90">Server (Join Room)</span>
+        </button>
       </div>
-      <div class="feedback" id="fb-0"></div>
     </div>
-  </div>
 
-  <!-- Q2 -->
-  <div class="question" data-index="1" style="display:none;">
-    <div class="photo">
-      <img src="images/q2.png" alt="Q2 圖片（可替換為佩佩豬圖）" />
-    </div>
-    <div class="qbody">
-      <h2>Q2｜What Comes First?</h2>
-      <p><strong>角色：George 🦖</strong></p>
-      <p class="role-lines">“Peppa! I’m hungry! Can I have cake?” — Peppa: “Not yet, George! What do we have first at afternoon tea?”</p>
-      <div class="qtext"><strong>Question</strong><br>What would they have first during afternoon tea?</div>
-      <div class="choices">
-        <button data-correct="false">A. Tea</button>
-        <button data-correct="false">B. Cakes and dessert</button>
-        <button data-correct="true">C. Sandwiches ✅</button>
+    <!-- 主持人 (大螢幕) 介面 -->
+    <div v-if="role === 'host'" class="space-y-6">
+      <div class="flex justify-between items-center border-b border-emerald-800 pb-4">
+        <div>
+          <h2 class="text-2xl font-bold text-amber-300">房號 / Room Code: <span class="card-green border border-amber-400/40 px-3 py-1 rounded text-amber-200 tracking-widest font-mono">{{ roomId }}</span></h2>
+          <p class="text-sm text-emerald-300/70">請服務生輸入此房號加入（目前人數：{{ players.length }} 人）/ Enter code to join (Players: {{ players.length }})</p>
+        </div>
+        <button v-if="gameState === 'lobby'" @click="startGame" :disabled="players.length === 0" class="bg-amber-400 hover:bg-amber-300 disabled:opacity-50 text-emerald-950 font-extrabold px-6 py-3 rounded-lg shadow-md">
+          開始今日營業 🚀 / Start Business
+        </button>
       </div>
-      <div class="feedback" id="fb-1"></div>
-    </div>
-  </div>
 
-  <!-- Q3 -->
-  <div class="question" data-index="2" style="display:none;">
-    <div class="photo">
-      <img src="images/q3.png" alt="Q3 圖片（可替換為佩佩豬圖）" />
-    </div>
-    <div class="qbody">
-      <h2>Q3｜Social Activity</h2>
-      <p><strong>角色：Peppa 🐷</strong></p>
-      <p class="role-lines">“I’m going to a very fancy social activity! What should I do there?”</p>
-      <div class="qtext"><strong>Question</strong><br>What would they do when attending a social activity?</div>
-      <div class="choices">
-        <button data-correct="false">A. Use social media</button>
-        <button data-correct="false">B. Take beautiful pictures</button>
-        <button data-correct="true">C. Invite people to their home ✅</button>
+      <!-- 大廳玩家列表 (顯示手繪頭像) -->
+      <div v-if="gameState === 'lobby'" class="card-green p-6 rounded-xl border border-emerald-800">
+        <h3 class="text-lg font-bold mb-4 text-amber-200">已打卡上班的服務生 / Checked-in Servers：</h3>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div v-for="p in players" :key="p.id" class="bg-emerald-900/80 p-3 rounded-lg text-center font-bold border border-emerald-700 flex flex-col items-center gap-2">
+            <img :src="p.avatar || 'https://api.dicebear.com/7.x/bottts/svg?seed=' + p.name" class="w-16 h-16 bg-white/10 rounded-full p-1 border border-amber-400/30 object-cover">
+            <span>🧑‍🍳 {{ p.name }}</span>
+          </div>
+        </div>
       </div>
-      <div class="feedback" id="fb-2"></div>
-    </div>
-  </div>
 
-  <!-- Q4 -->
-  <div class="question" data-index="3" style="display:none;">
-    <div class="photo">
-      <img src="images/q4.png" alt="Q4 圖片（可替換為佩佩豬圖）" />
-    </div>
-    <div class="qbody">
-      <h2>Q4｜Nobles' Tea Cups</h2>
-      <p><strong>角色：Daddy Pig 🐷</strong></p>
-      <p class="role-lines">“Ah, tea cups! I know quite a lot about fancy things.”</p>
-      <div class="qtext"><strong>Question</strong><br>What material did nobles use for their tea cups?</div>
-      <div class="choices">
-        <button data-correct="false">A. Metal</button>
-        <button data-correct="true">B. Porcelain ✅</button>
-        <button data-correct="false">C. Wood</button>
+      <!-- 題目畫面 -->
+      <div v-if="gameState === 'quiz'" class="space-y-6">
+        <div class="card-green p-6 rounded-xl border border-amber-400/30">
+          <div class="flex justify-between items-center mb-4">
+            <span class="bg-amber-400/20 text-amber-300 border border-amber-400/40 px-3 py-1 rounded-full text-sm font-bold">
+              {{ currentQ.isBonus ? '🧾 全場唯一加分題／主管考核題 (Bonus Question)' : '💰 普通題 第 ' + (currentQIndex + 1) + ' 題 (Question ' + (currentQIndex + 1) + ')' }}
+            </span>
+            <span class="text-2xl font-black text-rose-400">⏱️ {{ timer }}s</span>
+          </div>
+
+          <!-- 各異客人點餐區域（僅移除題目旁的圖片，其餘文字結構完全保留） -->
+          <div class="bg-emerald-950/80 p-4 rounded-xl border border-emerald-700/60 mb-6 flex items-center gap-4">
+            <div class="flex-1">
+              <span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded font-bold uppercase tracking-wider">
+                {{ currentQ.customerType }}
+              </span>
+              <p class="text-xl md:text-2xl font-bold mt-1 text-amber-100">"{{ currentQ.question }}"</p>
+            </div>
+          </div>
+
+          <!-- 選項區域 -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div v-for="(opt, idx) in currentQ.options" :key="idx" 
+                 :class="['p-4 rounded-xl border font-semibold text-base md:text-lg transition flex items-start gap-2', 
+                          showAnswer && idx === currentQ.answer ? 'bg-amber-500 border-amber-300 text-emerald-950 font-bold' : 'bg-emerald-900/60 border-emerald-700/80']">
+              <span class="font-mono font-bold">{{ String.fromCharCode(65 + idx) }}.</span>
+              <span>{{ opt }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 控制按鈕 -->
+        <div class="flex justify-between items-center">
+          <div class="text-emerald-300/70">已收到回答 / Answers Received：{{ answeredCount }} / {{ players.length }}</div>
+          <button v-if="!showAnswer" @click="revealAnswer" class="bg-emerald-600 hover:bg-emerald-500 px-6 py-2 rounded-lg font-bold text-white">公布答案 / Reveal Answer</button>
+          <button v-else @click="nextQuestion" class="bg-amber-400 hover:bg-amber-300 text-emerald-950 px-6 py-2 rounded-lg font-bold">
+            {{ currentQIndex + 1 < questions.length ? '下一題 😋 / Next Question' : '結算今日收入 💸 / Show Leaderboard' }}
+          </button>
+        </div>
       </div>
-      <div class="feedback" id="fb-3"></div>
-    </div>
-  </div>
 
-  <!-- Q5 -->
-  <div class="question" data-index="4" style="display:none;">
-    <div class="photo">
-      <img src="images/q5.png" alt="Q5 圖片（可替換為佩佩豬圖）" />
-    </div>
-    <div class="qbody">
-      <h2>Q5｜Who Made Tea Popular?</h2>
-      <p><strong>角色：Granny Pig 👵</strong></p>
-      <p class="role-lines">“Tea has quite a long history, you know.”</p>
-      <div class="qtext"><strong>Question</strong><br>Who made drinking tea popular among the nobles?</div>
-      <div class="choices">
-        <button data-correct="false">A. Kass</button>
-        <button data-correct="false">B. Civilian</button>
-        <button data-correct="true">C. Catherine of Braganza ✅</button>
+      <!-- 排行榜 (顯示服務生自製畫像) -->
+      <div v-if="gameState === 'leaderboard'" class="card-green p-6 rounded-xl space-y-4 border border-amber-400/30">
+        <h2 class="text-3xl font-black text-amber-300 text-center">🏆 今日服務生結算排行榜 / Daily Server Leaderboard</h2>
+        <div class="space-y-3">
+          <div v-for="(p, rank) in sortedPlayers" :key="p.id" 
+               :class="['flex justify-between items-center p-4 rounded-xl font-bold', 
+                        rank === 0 ? 'gold-gradient text-emerald-950 scale-105 shadow-xl' : 'bg-emerald-900/80 border border-emerald-700']">
+            <div class="flex items-center gap-3">
+              <span class="text-2xl">{{ rank === 0 ? '🥇' : rank === 1 ? '🥈' : rank === 2 ? '🥉' : '#' + (rank + 1) }}</span>
+              <img :src="p.avatar || 'https://api.dicebear.com/7.x/bottts/svg?seed=' + p.name" class="w-12 h-12 rounded-full border border-amber-400/40 bg-black/20 object-cover">
+              <span class="text-xl">{{ p.name }}</span>
+              <span v-if="rank === 0" class="bg-emerald-950 text-amber-300 text-xs px-2 py-1 rounded border border-amber-400/40">🎁 獲得能飛體驗卡 / Flight Pass Prize</span>
+            </div>
+            <div class="text-xl font-mono">${{ p.score.toLocaleString() }}</div>
+          </div>
+        </div>
       </div>
-      <div class="feedback" id="fb-4"></div>
     </div>
-  </div>
 
-  <!-- Q6 -->
-  <div class="question" data-index="5" style="display:none;">
-    <div class="photo">
-      <img src="images/q6.png" alt="Q6 圖片（可替換為佩佩豬圖）" />
-    </div>
-    <div class="qbody">
-      <h2>Q6｜The Pinky Finger</h2>
-      <p><strong>角色：Suzy Sheep 🐑</strong></p>
-      <p class="role-lines">Suzy sticks out her pinky finger. Peppa: “Oooh! That looks very fancy!”</p>
-      <div class="qtext"><strong>Question</strong><br>In traditional British tea etiquette, what does sticking your pinky finger out while drinking tea actually mean?</div>
-      <div class="choices">
-        <button data-correct="false">A. You are ultra-fancy, super classy, and clearly born a royal!</button>
-        <button data-correct="false">B. Your pinky finger is overheating and urgently needs some cool air.</button>
-        <button data-correct="true">C. You are being snobbish, trying too hard to get attention, and showing bad manners! ✅</button>
-        <button data-correct="false">D. You are secretly trying to challenge the person sitting across from you to a pinky promise.</button>
+    <!-- 玩家 (手機端) 介面 -->
+    <div v-if="role === 'player'" class="space-y-6">
+      <!-- 登入頁：包含手繪服務生長相畫板 -->
+      <div v-if="!joined" class="card-green p-6 rounded-xl space-y-4 max-w-md mx-auto border border-emerald-800">
+        <h2 class="text-2xl font-bold text-amber-300 text-center">打卡上班 / Clock In</h2>
+        <div>
+          <label class="block text-sm text-emerald-300/70 mb-1">房號 / Room Code</label>
+          <input v-model="inputRoomId" type="text" placeholder="例如：8890" class="w-full bg-emerald-900/80 p-3 rounded-lg border border-emerald-700 text-amber-200 font-mono uppercase">
+        </div>
+        <div>
+          <label class="block text-sm text-emerald-300/70 mb-1">你的名字📓 / Your Name</label>
+          <input v-model="playerName" type="text" placeholder="請輸入名字 / Enter Name" class="w-full bg-emerald-900/80 p-3 rounded-lg border border-emerald-700 text-white">
+        </div>
+
+        <!-- 繪製頭像區塊（完全保留） -->
+        <div>
+          <label class="block text-sm text-emerald-300/70 mb-1">繪製你的服務生肖像 / Draw Your Server Portrait</label>
+          <div class="flex flex-col items-center bg-emerald-950 p-3 rounded-lg border border-emerald-700 space-y-2">
+            <canvas ref="drawCanvas" width="200" height="200" class="bg-white rounded-lg cursor-crosshair touch-none"></canvas>
+            <div class="flex items-center gap-2">
+              <button v-for="c in ['#000000', '#dc2626', '#ca8a04', '#16a34a', '#2563eb']" :key="c" 
+                      @click="penColor = c" 
+                      :style="{ backgroundColor: c }" 
+                      :class="['w-7 h-7 rounded-full border-2', penColor === c ? 'border-amber-300 scale-110' : 'border-transparent']"></button>
+              <button @click="clearCanvas" class="text-xs bg-rose-900/80 text-rose-200 px-2 py-1 rounded border border-rose-700 ml-2">重畫 / Clear</button>
+            </div>
+          </div>
+        </div>
+
+        <button @click="joinHost" :disabled="!inputRoomId || !playerName" class="w-full bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-emerald-950 font-bold py-3 rounded-lg shadow-md">
+          連線打卡 / Join Game
+        </button>
       </div>
-      <div class="feedback" id="fb-5"></div>
-    </div>
-  </div>
 
-  <!-- Q7 -->
-  <div class="question" data-index="6" style="display:none;">
-    <div class="photo">
-      <img src="images/q7.png" alt="Q7 圖片（可替換為佩佩豬圖）" />
-    </div>
-    <div class="qbody">
-      <h2>Q7｜George's Broken Dinosaur</h2>
-      <p><strong>角色：George + Daddy Pig 🦖🐷</strong></p>
-      <p class="role-lines">George: “Oh no! My DINOSAUR is broken!” — Daddy Pig: “Don’t panic, George.”</p>
-      <div class="qtext"><strong>Question</strong><br>What would Daddy Pig say?</div>
-      <div class="choices">
-        <button data-correct="true">A. Shall I put the kettle on? ✅</button>
-        <button data-correct="false">B. Shall I fight the rain?</button>
-        <button data-correct="false">C. Shall I buy a new phone for you?</button>
-        <button data-correct="false">D. Shall I call the principal?</button>
+      <!-- 遊戲進行頁（頂部顯示自己的自製頭像） -->
+      <div v-else class="space-y-6">
+        <div class="card-green p-4 rounded-xl flex justify-between items-center border border-emerald-800">
+          <div class="flex items-center gap-3">
+            <img :src="myAvatar" class="w-10 h-10 rounded-full border border-amber-300 bg-white object-cover">
+            <span class="font-bold text-emerald-100">🧑‍🍳 {{ playerName }}</span>
+          </div>
+          <span class="font-mono text-amber-300 font-bold">今日收入 / Income: ${{ playerScore.toLocaleString() }}</span>
+        </div>
+
+        <div v-if="playerState === 'waiting'" class="text-center py-16 card-green rounded-xl border border-emerald-800 space-y-2">
+          <p class="text-xl text-emerald-200/80 animate-pulse">☕ 等待下一位客人到訪</p>
+          <p class="text-xs text-emerald-400/60 font-mono">Waiting for the next guest...</p>
+        </div>
+
+        <div v-if="playerState === 'answering'" class="grid grid-cols-2 gap-4">
+          <button v-for="(opt, idx) in 4" :key="idx" @click="submitAnswer(idx)" 
+                  :disabled="submittedThisQuestion"
+                  class="bg-amber-600 hover:bg-amber-500 active:bg-amber-700 disabled:opacity-60 text-white font-black text-3xl py-12 rounded-xl shadow-lg border-b-4 border-amber-800">
+            {{ String.fromCharCode(65 + idx) }}
+          </button>
+        </div>
+
+        <div v-if="playerState === 'submitted'" class="text-center py-16 card-green rounded-xl space-y-2 border border-emerald-800">
+          <p class="text-2xl font-bold text-amber-300">✓ 已送出餐點！ / Order Submitted!</p>
+          <p class="text-emerald-300/70">請看大螢幕等待公布結果... / Please look at the main screen...</p>
+        </div>
+
+        <div v-if="playerState === 'result'" class="text-center py-12 card-green rounded-xl space-y-4 border border-emerald-800">
+          <div v-if="lastResult.isCorrect" class="text-3xl md:text-4xl font-black text-amber-300">
+            🎉 餐點送對了！<br><span class="text-lg font-normal opacity-90">Correct Order!</span>
+          </div>
+          <div v-else-if="lastResult.isBonus" class="text-2xl font-bold text-amber-200 p-4 border border-amber-400/30 bg-amber-400/10 rounded-xl space-y-1">
+            <div>😐 主管對於你的表現感到失望</div>
+            <div class="text-sm font-normal opacity-80">Manager is disappointed with your performance</div>
+          </div>
+          <div v-else class="text-2xl md:text-3xl font-black text-rose-400 space-y-1">
+            <div>😠 客人感到不開心！</div>
+            <div class="text-sm font-normal opacity-80">Guest is unhappy!</div>
+            <span class="text-xl font-mono mt-2 block text-rose-300">−114,514</span>
+          </div>
+          <p class="text-emerald-300/70 pt-2 text-sm">等待主持人切換下一題... / Waiting for host...</p>
+        </div>
+
+        <div v-if="playerState === 'ended'" class="text-center py-12 card-green rounded-xl space-y-4 border border-emerald-800">
+          <h2 class="text-3xl font-bold text-amber-300">營業結束！ / Service Ended!</h2>
+          <p class="text-2xl font-mono">最終今日收入 / Total Income：<br><span class="text-amber-200 text-3xl font-bold">${{ playerScore.toLocaleString() }}</span></p>
+        </div>
       </div>
-      <div class="feedback" id="fb-6"></div>
     </div>
+
   </div>
 
-  <!-- 更多題目... -->
-</div>
+  <script>
+    const { createApp, ref, computed, onMounted, nextTick } = Vue;
 
-<!-- 結束訊息 -->
-<div id="endMessage" style="display:none; margin-top:20px;">
-  <div id="endDialog" class="card"></div>
-</div>
+    const QUESTIONS = [
+      { 
+        customerType: "Customer Etiquette / 顧客點餐禮儀",
+        avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=LadyGrace&accessories=glasses&facialHairProbability=0",
+        question: "What should guests do during afternoon tea in our restaurant?", 
+        options: ["Talking out loud", "Be graceful and polite", "Take actions before host’s signals", "Leave without saying goodbye"], 
+        answer: 1, 
+        isBonus: false 
+      },
+      { 
+        customerType: "Noble Guest / 貴族客人詢問",
+        avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=LordArthur&top=topHat&facialHairProbability=100",
+        question: "Excuse me, what material did noble guests historically use for their tea cups?", 
+        options: ["metal", "porcelain", "wood", "plastic"], 
+        answer: 1, 
+        isBonus: false 
+      },
+      { 
+        customerType: "Order Sequence / 客人餐點順序",
+        avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=HungryGuest&mouth=smile,openSmile",
+        question: "I am ready to order! What would guests usually have first during traditional afternoon tea?", 
+        options: ["Tea", "Cakes and dessert", "Sandwiches", "Scones"], 
+        answer: 2, 
+        isBonus: false 
+      },
+      { 
+        customerType: "Tea Etiquette / 顧客飲茶姿勢",
+        avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=FancyPants&eyebrows=raisedExcited",
+        question: "In traditional British tea etiquette, what does sticking your pinky finger out while drinking tea actually mean?", 
+        options: [
+          "You are ultra-fancy, super classy, and clearly born a royal!", 
+          "Your pinky finger is overheating and urgently needs some cool air.", 
+          "You are being snobbish, trying too hard to get attention, and showing bad manners!", 
+          "You are secretly trying to challenge the person sitting across from you to a pinky promise."
+        ], 
+        answer: 2, 
+        isBonus: false 
+      },
+      { 
+        customerType: "Little Guest / 小客人 George 哭鬧中",
+        avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=LittleGeorge&top=shortHair&eyes=cry",
+        question: 'George: "Oh no! My DINOSAUR is broken!" What should a polite British Papa say to comfort him?', 
+        options: [
+          "Shall I put the kettle on?", 
+          "Shall I fight the rain?", 
+          "Shall I buy a new phone for you?", 
+          "Shall I call the principal?"
+        ], 
+        answer: 0, 
+        isBonus: false 
+      },
+      { 
+        customerType: "Social Party Guest / 社交宴會客人",
+        avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Socialite&hairColor=blonde",
+        question: "What would proper guests do when attending a formal social activity?", 
+        options: ["Use social media all the time", "Take beautiful pictures non-stop", "Invite people politely to their home", "Play games loudly on their phone"], 
+        answer: 2, 
+        isBonus: false 
+      },
+      { 
+        customerType: "🧾 Bonus Question / 全場唯一加分題（主管考核題）",
+        avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=QueenCatherine&top=hijab&accessories=eyepatch",
+        question: "Who made drinking tea popular among the nobles in 1662?", 
+        options: ["Kass", "civilian", "Catherine of Braganza", "Queen Elizabeth I"], 
+        answer: 2, 
+        isBonus: true 
+      }
+    ];
 
-<script>
-  // 啟動/投影/字體控制 保留原本功能
-  const toggleBtn = document.getElementById('togglePresenter');
-  const toolbar = document.getElementById('toolbar');
-  let presenterOn = false;
-  toggleBtn.addEventListener('click', async () => {
-    presenterOn = !presenterOn;
-    document.body.classList.toggle('presenter-mode', presenterOn);
-    toolbar.classList.toggle('hidden', presenterOn === true ? true : false);
-    if (presenterOn && document.documentElement.requestFullscreen) {
-      try { await document.documentElement.requestFullscreen(); } catch(e) { /* ignore */ }
-    } else if (!presenterOn && document.exitFullscreen) {
-      try { await document.exitFullscreen(); } catch(e){ }
-    }
-  });
-  const fontRange = document.getElementById('fontRange');
-  fontRange.addEventListener('input', (e) => {
-    const size = e.target.value;
-    document.documentElement.style.setProperty('--presenter-font', size + 'px');
-  });
+    createApp({
+      setup() {
+        const role = ref(null);
+        const roomId = ref('');
+        const inputRoomId = ref('');
+        const playerName = ref('');
+        const players = ref([]);
+        const gameState = ref('lobby');
+        const playerState = ref('waiting');
+        const currentQIndex = ref(0);
+        const timer = ref(15);
+        const timerInterval = ref(null);
+        const showAnswer = ref(false);
+        const joined = ref(false);
+        const playerScore = ref(0);
+        const lastResult = ref({ isCorrect: false, isBonus: false });
+        const submittedThisQuestion = ref(false);
 
-  // 遊戲流程：顯示題目 modal、答題並顯示對應回應，然後自動切換下一題
-  const startModal = document.getElementById('startModal');
-  const startBtn = document.getElementById('startBtn');
-  const questionModal = document.getElementById('questionModal');
-  const questionModalContent = document.getElementById('questionModalContent');
-  const closeQuestionModal = document.getElementById('closeQuestionModal');
-  const questionElems = Array.from(document.querySelectorAll('.question'));
-  const totalQuestions = questionElems.length;
-  let currentIndex = 0;
-  let correctCount = 0;
+        // 繪圖板變數
+        const drawCanvas = ref(null);
+        const penColor = ref('#000000');
+        const myAvatar = ref('');
+        let ctx = null;
+        let isDrawing = false;
 
-  // 每題對應的角色開場與答對/答錯回應（以 JS 內建資料為主，避免 HTML attribute 逃脫問題）
-  const questionScripts = [
-    { role: 'Mummy Pig 🐷', intro: '“Now, everyone, afternoon tea is a very special occasion. We must remember our manners!”',
-      correct: 'Mummy Pig：<em>“Very good! Good manners are always important.”</em>',
-      wrong: 'Mummy Pig：<em>“Hmm… let’s remember to be graceful and polite.”</em>' },
-    { role: 'George 🦖', intro: '“Peppa! I’m hungry! Can I have cake?” — Peppa: “Not yet, George! What do we have first at afternoon tea?”',
-      correct: 'George：<em>“Sandwiches first! Then cake!”</em>',
-      wrong: 'George：<em>“But… I wanted cake!”</em>' },
-    { role: 'Peppa 🐷', intro: '“I’m going to a very fancy social activity! What should I do there?”',
-      correct: 'Peppa：<em>“That’s right! It’s lovely to have people over.”</em>',
-      wrong: 'Suzy Sheep：<em>“Maybe think about what people traditionally did at social gatherings.”</em>' },
-    { role: 'Daddy Pig 🐷', intro: '“Ah, tea cups! I know quite a lot about fancy things.”',
-      correct: 'Daddy Pig：<em>“Exactly! Porcelain. Very elegant.”</em><br>Peppa：<em>“Well done, Daddy!”</em>',
-      wrong: 'Daddy Pig：<em>“Oh dear… perhaps I’m not quite as sophisticated as I thought.”</em>' },
-    { role: 'Granny Pig 👵', intro: '“Tea has quite a long history, you know.”',
-      correct: 'Granny Pig：<em>“That’s right! Catherine of Braganza.”</em>',
-      wrong: 'Granny Pig：<em>“Not quite, dear. Think of a Portuguese royal.”</em>' },
-    { role: 'Suzy Sheep 🐑', intro: 'Suzy sticks out her pinky finger. Peppa：“Oooh! That looks very fancy!”',
-      correct: 'Peppa：<em>“Oh! So sticking your pinky out isn’t fancy at all!”</em><br>Suzy Sheep：<em>“Oops!”</em>',
-      wrong: 'Peppa：<em>“I thought it made you look fancy!”</em>' },
-    { role: 'George + Daddy Pig 🦖🐷', intro: 'George：“Oh no! My DINOSAUR is broken!” — Daddy Pig：“Don’t panic, George.”',
-      correct: 'Daddy Pig：<em>“Excellent! A nice cup of tea can make everything better.”</em><br>George：<em>“Dinosaur!”</em>',
-      wrong: 'Daddy Pig：<em>“Hmm… I think a cup of tea would be the most British solution.”</em>' }
-  ];
+        let peer = null;
+        let hostConn = null;
+        const playerConns = ref([]);
+        const answersReceived = ref({});
+        let questionStartAt = null;
 
-  // 隱藏所有題目，讓流程控制顯示
-  function hideAllQuestions() {
-    questionElems.forEach(q => q.style.display = 'none');
-  }
+        const currentQ = computed(() => QUESTIONS[currentQIndex.value]);
+        const answeredCount = computed(() => Object.keys(answersReceived.value).length);
+        const sortedPlayers = computed(() => [...players.value].sort((a, b) => b.score - a.score));
 
-  function showQuestion(index) {
-    hideAllQuestions();
-    const q = questionElems[index];
-    if (!q) return;
-    q.style.display = ''; // 顯示該題
-    // 顯示題目的客人對話 modal（由 questionScripts 注入）
-    const script = questionScripts[index];
-    questionModalContent.innerHTML = `<p><strong>角色：${script.role}</strong></p><p>${script.intro}</p>`;
-    questionModal.style.display = 'flex';
-    questionModal.setAttribute('aria-hidden', 'false');
-  }
+        // 初始化畫畫板事件
+        const initCanvas = () => {
+          if (!drawCanvas.value) return;
+          const canvas = drawCanvas.value;
+          ctx = canvas.getContext('2d');
+          ctx.lineWidth = 4;
+          ctx.lineCap = 'round';
 
-  // start 按鈕：關閉開始 modal，顯示第一題 modal
-  startBtn.addEventListener('click', () => {
-    startModal.style.display = 'none';
-    currentIndex = 0;
-    correctCount = 0;
-    showQuestion(currentIndex);
-  });
+          const getPos = (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return { x: clientX - rect.left, y: clientY - rect.top };
+          };
 
-  closeQuestionModal.addEventListener('click', () => {
-    // 關閉題目 modal，留在頁面上讓學生作答
-    questionModal.style.display = 'none';
-    questionModal.setAttribute('aria-hidden', 'true');
-  });
+          const startDraw = (e) => {
+            isDrawing = true;
+            const pos = getPos(e);
+            ctx.beginPath();
+            ctx.moveTo(pos.x, pos.y);
+          };
 
-  // 綁定每題的按鈕事件（使用事件委派以支援多選）
-  questionElems.forEach((qElem, idx) => {
-    const buttons = qElem.querySelectorAll('.choices button');
-    const fb = qElem.querySelector('.feedback');
-    buttons.forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        // 若已經有反饋則忽略（避免多次點擊）
-        if (fb.classList.contains('correct') || fb.classList.contains('wrong')) return;
+          const moveDraw = (e) => {
+            if (!isDrawing) return;
+            const pos = getPos(e);
+            ctx.strokeStyle = penColor.value;
+            ctx.lineTo(pos.x, pos.y);
+            ctx.stroke();
+          };
 
-        const correct = e.target.getAttribute('data-correct') === 'true';
-        const script = questionScripts[idx];
+          const stopDraw = () => { isDrawing = false; };
 
-        if (correct) {
-          fb.className = 'feedback correct';
-          fb.innerHTML = `答對 💚<br>${script.correct}`;
-          correctCount += 1;
-        } else {
-          fb.className = 'feedback wrong';
-          fb.innerHTML = `答錯 ❤️<br>${script.wrong}`;
-        }
+          canvas.addEventListener('mousedown', startDraw);
+          canvas.addEventListener('mousemove', moveDraw);
+          canvas.addEventListener('mouseup', stopDraw);
+          canvas.addEventListener('touchstart', startDraw);
+          canvas.addEventListener('touchmove', moveDraw);
+          canvas.addEventListener('touchend', stopDraw);
+        };
 
-        // 小延遲後自動前往下一題（1.2 秒），若是最後一題則顯示結算
-        setTimeout(() => {
-          // 清除當前題目的反饋（讓使用者回頭看也不會影響）
-          // 但為了保留回饋顯示，我們不會立刻清空，而是在顯示下一題時保證該題被隱藏
-          currentIndex += 1;
-          if (currentIndex < totalQuestions) {
-            showQuestion(currentIndex);
-          } else {
-            // 遊戲結束
-            showEndMessage(correctCount, totalQuestions);
-            // 若有 modal 開著就關閉
-            questionModal.style.display = 'none';
-            questionModal.setAttribute('aria-hidden', 'true');
-            hideAllQuestions();
+        const clearCanvas = () => {
+          if (ctx && drawCanvas.value) {
+            ctx.clearRect(0, 0, drawCanvas.value.width, drawCanvas.value.height);
           }
-        }, 1200);
-      });
-    });
-  });
+        };
 
-  // 結束訊息：根據答對題數顯示不同的台詞（既有函式）
-  function showEndMessage(correctCountParam, total) {
-    const endDialog = document.getElementById('endDialog');
-    let text = '';
-    if (correctCountParam === total) {
-      text = '<p><strong>服務生：</strong>恭喜您通關！今天的英式下午茶全數正確，特別奉上一份笑容。</p>';
-    } else if (correctCountParam >= Math.ceil(total * 0.6)) {
-      text = '<p><strong>服務生：</strong>表現不錯！您掌握了很多茶點知識。</p>';
-    } else {
-      text = '<p><strong>豬媽媽：</strong>沒關係，下次我們再一起來練習英式下午茶！</p>';
-    }
-    text += `<p>得分：${correctCountParam} / ${total}</p>`;
-    endDialog.innerHTML = text;
-    document.getElementById('endMessage').style.display = 'block';
-  }
+        const createPeerWithId = (id) => {
+          try { return new Peer(id); } catch (err) { return null; }
+        };
 
-  // 頁面載入時：隱藏所有題目（等待 start）
-  hideAllQuestions();
-</script>
+        const initHost = () => {
+          role.value = 'host';
+          const makeNewRoom = () => Math.floor(1000 + Math.random() * 9000).toString();
+          roomId.value = makeNewRoom();
+          
+          const tryConnect = (id) => {
+            peer = createPeerWithId('rtt-room-' + id);
+            if (!peer) return;
+
+            peer.on('error', (err) => {
+              if (err.type === 'unavailable-id' || /ID.*already in use/i.test(err.message || '')) {
+                const newId = makeNewRoom();
+                roomId.value = newId;
+                try { peer.destroy && peer.destroy(); } catch(e){}
+                tryConnect(newId);
+              }
+            });
+
+            peer.on('connection', (conn) => {
+              conn.on('data', (data) => {
+                if (data && data.type === 'JOIN') {
+                  const name = (data.name || '').toString().trim().slice(0, 50) || '匿名';
+                  const avatar = data.avatar || '';
+                  if (!players.value.find(p => p.id === conn.peer)) {
+                    players.value.push({ id: conn.peer, name, score: 0, avatar });
+                  }
+                  playerConns.value.push(conn);
+                  safeSend(conn, { type: 'JOINED' });
+                  broadcast({ type: 'PLAYERS_UPDATE', players: players.value.map(p => ({ id: p.id, name: p.name, score: p.score, avatar: p.avatar })) });
+                } else if (data && data.type === 'SUBMIT_ANSWER') {
+                  if (!answersReceived.value[conn.peer]) {
+                    answersReceived.value[conn.peer] = { answer: data.answer, receivedAt: Date.now() };
+                  }
+                }
+              });
+
+              conn.on('close', () => removePlayer(conn.peer));
+              conn.on('error', () => removePlayer(conn.peer));
+            });
+          };
+
+          tryConnect(roomId.value);
+        };
+
+        const safeSend = (conn, payload) => {
+          try { if (conn && conn.open) conn.send(payload); } catch (e) {}
+        };
+
+        const broadcast = (payload) => {
+          playerConns.value.forEach(c => safeSend(c, payload));
+        };
+
+        const removePlayer = (peerId) => {
+          const idx = players.value.findIndex(p => p.id === peerId);
+          if (idx !== -1) players.value.splice(idx, 1);
+          for (let i = playerConns.value.length - 1; i >= 0; i--) {
+            if (playerConns.value[i].peer === peerId) playerConns.value.splice(i, 1);
+          }
+          if (answersReceived.value[peerId]) delete answersReceived.value[peerId];
+          broadcast({ type: 'PLAYERS_UPDATE', players: players.value.map(p => ({ id: p.id, name: p.name, score: p.score, avatar: p.avatar })) });
+        };
+
+        const startGame = () => { currentQIndex.value = 0; startQuestion(); };
+
+        const startQuestion = () => {
+          gameState.value = 'quiz';
+          showAnswer.value = false;
+          answersReceived.value = {};
+          timer.value = 15;
+          questionStartAt = Date.now();
+          broadcast({ type: 'START_Q' });
+
+          clearInterval(timerInterval.value);
+          timerInterval.value = setInterval(() => {
+            if (timer.value > 0) { timer.value--; } else { revealAnswer(); }
+          }, 1000);
+        };
+
+        const revealAnswer = () => {
+          clearInterval(timerInterval.value);
+          showAnswer.value = true;
+          const q = currentQ.value;
+
+          players.value.forEach(p => {
+            const record = answersReceived.value[p.id];
+            let isCorrect = false;
+
+            if (record && typeof record.receivedAt === 'number') {
+              const elapsedSec = (record.receivedAt - questionStartAt) / 1000;
+              const timeLeft = Math.max(0, Math.ceil(15 - elapsedSec));
+              if (record.answer === q.answer) {
+                isCorrect = true;
+                if (q.isBonus) { p.score += 5162129; } 
+                else { p.score += (100 + Math.floor(timeLeft * 50)); }
+              } else {
+                if (!q.isBonus) p.score -= 114514;
+              }
+            } else {
+              if (!q.isBonus) p.score -= 114514;
+            }
+
+            const conn = playerConns.value.find(c => c.peer === p.id);
+            if (conn) {
+              safeSend(conn, { type: 'Q_RESULT', isCorrect, isBonus: q.isBonus, score: p.score });
+            }
+          });
+
+          broadcast({ type: 'PLAYERS_UPDATE', players: players.value.map(p => ({ id: p.id, name: p.name, score: p.score, avatar: p.avatar })) });
+        };
+
+        const nextQuestion = () => {
+          if (currentQIndex.value + 1 < QUESTIONS.length) {
+            currentQIndex.value++;
+            startQuestion();
+          } else {
+            gameState.value = 'leaderboard';
+            broadcast({ type: 'GAME_END' });
+          }
+        };
+
+        const joinHost = () => {
+          // 抓取畫板轉換成圖片
+          if (drawCanvas.value) {
+            myAvatar.value = drawCanvas.value.toDataURL('image/png');
+          }
+
+          peer = new Peer();
+          peer.on('open', () => {
+            hostConn = peer.connect('rtt-room-' + inputRoomId.value.trim());
+            
+            hostConn.on('open', () => {
+              hostConn.send({ 
+                type: 'JOIN', 
+                name: playerName.value,
+                avatar: myAvatar.value
+              });
+            });
+
+            hostConn.on('data', (data) => {
+              if (data.type === 'JOINED') {
+                joined.value = true;
+                playerState.value = 'waiting';
+              } else if (data.type === 'START_Q') {
+                playerState.value = 'answering';
+                submittedThisQuestion.value = false;
+              } else if (data.type === 'Q_RESULT') {
+                playerScore.value = data.score;
+                lastResult.value = { isCorrect: data.isCorrect, isBonus: data.isBonus };
+                playerState.value = 'result';
+              } else if (data.type === 'GAME_END') {
+                playerState.value = 'ended';
+              }
+            });
+          });
+        };
+
+        const submitAnswer = (index) => {
+          if (submittedThisQuestion.value) return;
+          submittedThisQuestion.value = true;
+          playerState.value = 'submitted';
+          hostConn.send({ type: 'SUBMIT_ANSWER', answer: index });
+        };
+
+        // 當選擇 role = 'player' 時初始化畫板
+        Vue.watch(role, (newVal) => {
+          if (newVal === 'player') {
+            nextTick(() => { initCanvas(); });
+          }
+        });
+
+        return {
+          role, roomId, inputRoomId, playerName, players, gameState, playerState,
+          questions: QUESTIONS, currentQIndex, currentQ, timer, showAnswer, joined,
+          playerScore, lastResult, answeredCount, sortedPlayers, submittedThisQuestion,
+          drawCanvas, penColor, myAvatar, clearCanvas,
+          initHost, startGame, revealAnswer, nextQuestion, joinHost, submitAnswer
+        };
+      }
+    }).mount('#app');
+  </script>
 </body>
 </html>
