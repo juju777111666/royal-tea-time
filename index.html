@@ -44,7 +44,7 @@
         </button>
       </div>
 
-      <!-- 大廳玩家列表 (顯示手繪頭像) -->
+      <!-- 大廳玩家列表 (顯示服務生自製畫像) -->
       <div v-if="gameState === 'lobby'" class="card-green p-6 rounded-xl border border-emerald-800">
         <h3 class="text-lg font-bold mb-4 text-amber-200">已打卡上班的服務生 / Checked-in Servers：</h3>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -57,22 +57,28 @@
 
       <!-- 題目畫面 -->
       <div v-if="gameState === 'quiz'" class="space-y-6">
-        <div class="card-green p-6 rounded-xl border border-amber-400/30">
-          <div class="flex justify-between items-center mb-4">
+        <div class="card-green p-6 rounded-xl border border-amber-400/30 space-y-4">
+          <div class="flex justify-between items-center">
             <span class="bg-amber-400/20 text-amber-300 border border-amber-400/40 px-3 py-1 rounded-full text-sm font-bold">
               {{ currentQ.isBonus ? '🧾 全場唯一加分題／主管考核題 (Bonus Question)' : '💰 普通題 第 ' + (currentQIndex + 1) + ' 題 (Question ' + (currentQIndex + 1) + ')' }}
             </span>
             <span class="text-2xl font-black text-rose-400">⏱️ {{ timer }}s</span>
           </div>
 
-          <!-- 各異客人點餐區域（僅移除題目旁的圖片，其餘文字結構完全保留） -->
-          <div class="bg-emerald-950/80 p-4 rounded-xl border border-emerald-700/60 mb-6 flex items-center gap-4">
-            <div class="flex-1">
-              <span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded font-bold uppercase tracking-wider">
-                {{ currentQ.customerType }}
-              </span>
-              <p class="text-xl md:text-2xl font-bold mt-1 text-amber-100">"{{ currentQ.question }}"</p>
+          <!-- Peppa Pig 客人情境對話區塊 -->
+          <div class="bg-emerald-950/80 p-4 rounded-xl border border-emerald-700/60 space-y-2">
+            <div class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded font-bold inline-block">
+              {{ currentQ.guestName }}
             </div>
+            <div v-for="(dialog, dIdx) in currentQ.scenario" :key="dIdx" class="text-base md:text-lg text-amber-100 italic">
+              <span class="font-bold not-italic text-amber-300">{{ dialog.speaker }}:</span> "{{ dialog.line }}"
+            </div>
+          </div>
+
+          <!-- 核心題目區塊 -->
+          <div class="bg-emerald-900/40 p-4 rounded-xl border border-emerald-700">
+            <span class="text-xs text-emerald-400 font-mono tracking-widest uppercase">QUESTION</span>
+            <p class="text-xl md:text-2xl font-bold text-amber-200 mt-1">{{ currentQ.question }}</p>
           </div>
 
           <!-- 選項區域 -->
@@ -83,6 +89,12 @@
               <span class="font-mono font-bold">{{ String.fromCharCode(65 + idx) }}.</span>
               <span>{{ opt }}</span>
             </div>
+          </div>
+
+          <!-- 答題後的客人回饋台詞 -->
+          <div v-if="showAnswer" class="p-4 rounded-xl bg-amber-400/10 border border-amber-400/30 text-amber-200 space-y-1">
+            <span class="font-bold text-amber-300">💬 客人回饋 (Guest Reaction):</span>
+            <p class="italic">"{{ currentQ.feedback.correct }}"</p>
           </div>
         </div>
 
@@ -96,7 +108,7 @@
         </div>
       </div>
 
-      <!-- 排行榜 (顯示服務生自製畫像) -->
+      <!-- 排行榜 (顯示服務生自製頭像) -->
       <div v-if="gameState === 'leaderboard'" class="card-green p-6 rounded-xl space-y-4 border border-amber-400/30">
         <h2 class="text-3xl font-black text-amber-300 text-center">🏆 今日服務生結算排行榜 / Daily Server Leaderboard</h2>
         <div class="space-y-3">
@@ -190,6 +202,13 @@
             <div class="text-sm font-normal opacity-80">Guest is unhappy!</div>
             <span class="text-xl font-mono mt-2 block text-rose-300">−114,514</span>
           </div>
+
+          <!-- 客人專屬台詞對話框 -->
+          <div class="p-4 rounded-xl bg-emerald-950 border border-emerald-700 text-amber-100 text-base max-w-md mx-auto">
+            <span class="text-xs text-amber-400 font-bold block mb-1">💬 客人對你說：</span>
+            <p class="italic">"{{ lastResult.feedback }}"</p>
+          </div>
+
           <p class="text-emerald-300/70 pt-2 text-sm">等待主持人切換下一題... / Waiting for host...</p>
         </div>
 
@@ -207,32 +226,86 @@
 
     const QUESTIONS = [
       { 
-        customerType: "Customer Etiquette / 顧客點餐禮儀",
-        avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=LadyGrace&accessories=glasses&facialHairProbability=0",
-        question: "What should guests do during afternoon tea in our restaurant?", 
-        options: ["Talking out loud", "Be graceful and polite", "Take actions before host’s signals", "Leave without saying goodbye"], 
+        guestName: "Mummy Pig 🐷",
+        scenario: [
+          { speaker: "Mummy Pig", line: "Now, everyone, afternoon tea is a very special occasion. We must remember our manners!" }
+        ],
+        question: "What should they do during afternoon tea?", 
+        options: ["Talking out loud", "Be graceful and polite", "Take actions before the host’s signals", "Leave without saying goodbye"], 
         answer: 1, 
+        feedback: {
+          correct: "Very good! Good manners are always important.",
+          wrong: "Hmm… let’s remember to be graceful and polite."
+        },
         isBonus: false 
       },
       { 
-        customerType: "Noble Guest / 貴族客人詢問",
-        avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=LordArthur&top=topHat&facialHairProbability=100",
-        question: "Excuse me, what material did noble guests historically use for their tea cups?", 
-        options: ["metal", "porcelain", "wood", "plastic"], 
-        answer: 1, 
-        isBonus: false 
-      },
-      { 
-        customerType: "Order Sequence / 客人餐點順序",
-        avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=HungryGuest&mouth=smile,openSmile",
-        question: "I am ready to order! What would guests usually have first during traditional afternoon tea?", 
+        guestName: "George & Peppa 🦖🐷",
+        scenario: [
+          { speaker: "George", line: "Peppa! I’m hungry! Can I have cake?" },
+          { speaker: "Peppa Pig", line: "Not yet, George! What do we have first at afternoon tea?" }
+        ],
+        question: "What would they have first during afternoon tea?", 
         options: ["Tea", "Cakes and dessert", "Sandwiches", "Scones"], 
         answer: 2, 
+        feedback: {
+          correct: "Dine-soer! ...I mean, Sandwiches first! Then cake!",
+          wrong: "Waaaaah! But I wanted cake!"
+        },
         isBonus: false 
       },
       { 
-        customerType: "Tea Etiquette / 顧客飲茶姿勢",
-        avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=FancyPants&eyebrows=raisedExcited",
+        guestName: "Peppa Pig & Suzy Sheep 🐷🐑",
+        scenario: [
+          { speaker: "Peppa Pig", line: "I’m going to a very fancy social activity! What should I do there?" },
+          { speaker: "Suzy Sheep", line: "Maybe you could invite some people to your home?" }
+        ],
+        question: "What would they do when attending a social activity?", 
+        options: ["Use social media", "Take beautiful pictures", "Invite people to their home", "Play games loudly on their phone"], 
+        answer: 2, 
+        feedback: {
+          correct: "That’s right! It’s lovely to have people over for tea!",
+          wrong: "Baa! Think about what people traditionally did at social gatherings!"
+        },
+        isBonus: false 
+      },
+      { 
+        guestName: "Daddy Pig 🐷",
+        scenario: [
+          { speaker: "Daddy Pig", line: "Ah, tea cups! I am an expert in sophisticated dining." },
+          { speaker: "Peppa Pig", line: "Are you really an expert, Daddy?" },
+          { speaker: "Daddy Pig", line: "Of course! Let me test our server." }
+        ],
+        question: "What material did nobles use for their tea cups?", 
+        options: ["Metal", "Porcelain", "Wood", "Plastic"], 
+        answer: 1, 
+        feedback: {
+          correct: "Exactly! Porcelain. I knew that all along, of course!",
+          wrong: "Oh dear… perhaps I’m not quite as sophisticated as I thought."
+        },
+        isBonus: false 
+      },
+      { 
+        guestName: "Granny Pig 👵",
+        scenario: [
+          { speaker: "Granny Pig", line: "Tea has quite a long and fascinating history, you know." },
+          { speaker: "Peppa Pig", line: "Who made tea popular with the nobles, Granny?" }
+        ],
+        question: "Who made drinking tea popular among the nobles?", 
+        options: ["Kass", "Civilians", "Catherine of Braganza", "Queen Elizabeth I"], 
+        answer: 2, 
+        feedback: {
+          correct: "That’s right, my dear! Catherine of Braganza made tea fashionable at court.",
+          wrong: "Not quite, dear. Think of a queen who came from Portugal."
+        },
+        isBonus: true 
+      },
+      { 
+        guestName: "Suzy Sheep & Peppa Pig 🐑🐷",
+        scenario: [
+          { speaker: "Suzy Sheep", line: "Peppa, look! I can drink tea with my pinky finger sticking out!" },
+          { speaker: "Peppa Pig", line: "Oooh! Does that make you ultra-fancy, Suzy?" }
+        ],
         question: "In traditional British tea etiquette, what does sticking your pinky finger out while drinking tea actually mean?", 
         options: [
           "You are ultra-fancy, super classy, and clearly born a royal!", 
@@ -241,12 +314,19 @@
           "You are secretly trying to challenge the person sitting across from you to a pinky promise."
         ], 
         answer: 2, 
+        feedback: {
+          correct: "See, Suzy? Sticking your pinky out is actually bad manners!",
+          wrong: "Oh dear! Don't let that sneaky little finger fool you!"
+        },
         isBonus: false 
       },
       { 
-        customerType: "Little Guest / 小客人 George 哭鬧中",
-        avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=LittleGeorge&top=shortHair&eyes=cry",
-        question: 'George: "Oh no! My DINOSAUR is broken!" What should a polite British Papa say to comfort him?', 
+        guestName: "George & Daddy Pig 🦖🐷",
+        scenario: [
+          { speaker: "George", line: "Oh no! My DINOSAUR is broken! Waaaaah!" },
+          { speaker: "Daddy Pig", line: "Don’t panic, George! I know the ultimate British solution." }
+        ],
+        question: "What would Daddy Pig say?", 
         options: [
           "Shall I put the kettle on?", 
           "Shall I fight the rain?", 
@@ -254,23 +334,11 @@
           "Shall I call the principal?"
         ], 
         answer: 0, 
+        feedback: {
+          correct: "There we are! A nice cup of tea makes everything better.",
+          wrong: "Hmm… I think putting the kettle on would be much more helpful!"
+        },
         isBonus: false 
-      },
-      { 
-        customerType: "Social Party Guest / 社交宴會客人",
-        avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Socialite&hairColor=blonde",
-        question: "What would proper guests do when attending a formal social activity?", 
-        options: ["Use social media all the time", "Take beautiful pictures non-stop", "Invite people politely to their home", "Play games loudly on their phone"], 
-        answer: 2, 
-        isBonus: false 
-      },
-      { 
-        customerType: "🧾 Bonus Question / 全場唯一加分題（主管考核題）",
-        avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=QueenCatherine&top=hijab&accessories=eyepatch",
-        question: "Who made drinking tea popular among the nobles in 1662?", 
-        options: ["Kass", "civilian", "Catherine of Braganza", "Queen Elizabeth I"], 
-        answer: 2, 
-        isBonus: true 
       }
     ];
 
@@ -289,7 +357,7 @@
         const showAnswer = ref(false);
         const joined = ref(false);
         const playerScore = ref(0);
-        const lastResult = ref({ isCorrect: false, isBonus: false });
+        const lastResult = ref({ isCorrect: false, isBonus: false, feedback: '' });
         const submittedThisQuestion = ref(false);
 
         // 繪圖板變數
@@ -460,9 +528,17 @@
               if (!q.isBonus) p.score -= 114514;
             }
 
+            const feedbackLine = isCorrect ? q.feedback.correct : q.feedback.wrong;
+
             const conn = playerConns.value.find(c => c.peer === p.id);
             if (conn) {
-              safeSend(conn, { type: 'Q_RESULT', isCorrect, isBonus: q.isBonus, score: p.score });
+              safeSend(conn, { 
+                type: 'Q_RESULT', 
+                isCorrect, 
+                isBonus: q.isBonus, 
+                score: p.score,
+                feedback: feedbackLine
+              });
             }
           });
 
@@ -480,7 +556,6 @@
         };
 
         const joinHost = () => {
-          // 抓取畫板轉換成圖片
           if (drawCanvas.value) {
             myAvatar.value = drawCanvas.value.toDataURL('image/png');
           }
@@ -506,7 +581,7 @@
                 submittedThisQuestion.value = false;
               } else if (data.type === 'Q_RESULT') {
                 playerScore.value = data.score;
-                lastResult.value = { isCorrect: data.isCorrect, isBonus: data.isBonus };
+                lastResult.value = { isCorrect: data.isCorrect, isBonus: data.isBonus, feedback: data.feedback };
                 playerState.value = 'result';
               } else if (data.type === 'GAME_END') {
                 playerState.value = 'ended';
@@ -522,7 +597,6 @@
           hostConn.send({ type: 'SUBMIT_ANSWER', answer: index });
         };
 
-        // 當選擇 role = 'player' 時初始化畫板
         Vue.watch(role, (newVal) => {
           if (newVal === 'player') {
             nextTick(() => { initCanvas(); });
