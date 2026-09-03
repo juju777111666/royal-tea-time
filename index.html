@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Royal Tea Time 下午茶服務生爭霸戰</title>
+  <title>Royal Tea Time - Afternoon Tea Battle</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
@@ -18,35 +18,35 @@
 <body class="retro-green text-emerald-100 min-h-screen font-sans">
   <div id="app" v-cloak class="max-w-4xl mx-auto p-4">
 
-    <!-- 首頁 / 角色選擇 -->
+    <!-- Role Selection -->
     <div v-if="role === null" class="text-center py-12 space-y-6">
       <h1 class="text-4xl md:text-6xl font-extrabold text-amber-300 tracking-wider drop-shadow-md">🫖 Royal Tea Time</h1>
-      <p class="text-emerald-300/80 text-lg md:text-xl">下午茶服務生爭霸戰 / Afternoon Tea Server Battle</p>
+      <p class="text-emerald-300/80 text-lg md:text-xl">Afternoon Tea Server Battle</p>
       <div class="flex justify-center gap-6 pt-6">
         <button @click="initHost" class="bg-amber-600 hover:bg-amber-500 text-white text-xl font-bold py-4 px-8 rounded-xl shadow-lg transition border border-amber-400/30">
-          我是主持人 (建立房間)<br><span class="text-sm font-normal opacity-90">Host (Create Room)</span>
+          Host (Create Room)
         </button>
         <button @click="role = 'player'" class="bg-emerald-700 hover:bg-emerald-600 text-white text-xl font-bold py-4 px-8 rounded-xl shadow-lg transition border border-emerald-500/30">
-          我是服務生 (加入房間)<br><span class="text-sm font-normal opacity-90">Server (Join Room)</span>
+          Server (Join Room)
         </button>
       </div>
     </div>
 
-    <!-- 主持人 (大螢幕) 介面 -->
+    <!-- Host Dashboard -->
     <div v-if="role === 'host'" class="space-y-6">
       <div class="flex justify-between items-center border-b border-emerald-800 pb-4">
         <div>
-          <h2 class="text-2xl font-bold text-amber-300">房號 / Room Code: <span class="card-green border border-amber-400/40 px-3 py-1 rounded text-amber-200 tracking-widest font-mono">{{ roomId }}</span></h2>
-          <p class="text-sm text-emerald-300/70">請服務生輸入此房號加入（目前人數：{{ players.length }} 人）/ Enter code to join (Players: {{ players.length }})</p>
+          <h2 class="text-2xl font-bold text-amber-300">Room Code: <span class="card-green border border-amber-400/40 px-3 py-1 rounded text-amber-200 tracking-widest font-mono">{{ roomId }}</span></h2>
+          <p class="text-sm text-emerald-300/70">Connected Servers: {{ players.length }}</p>
         </div>
         <button v-if="gameState === 'lobby'" @click="startGame" :disabled="players.length === 0" class="bg-amber-400 hover:bg-amber-300 disabled:opacity-50 text-emerald-950 font-extrabold px-6 py-3 rounded-lg shadow-md">
-          開始今日營業 🚀 / Start Business
+          Start Game 🚀
         </button>
       </div>
 
-      <!-- 大廳玩家列表 (顯示服務生自製畫像) -->
+      <!-- Lobby -->
       <div v-if="gameState === 'lobby'" class="card-green p-6 rounded-xl border border-emerald-800">
-        <h3 class="text-lg font-bold mb-4 text-amber-200">已打卡上班的服務生 / Checked-in Servers：</h3>
+        <h3 class="text-lg font-bold mb-4 text-amber-200">Ready Servers:</h3>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div v-for="p in players" :key="p.id" class="bg-emerald-900/80 p-3 rounded-lg text-center font-bold border border-emerald-700 flex flex-col items-center gap-2">
             <img :src="p.avatar || 'https://api.dicebear.com/7.x/bottts/svg?seed=' + p.name" class="w-16 h-16 bg-white/10 rounded-full p-1 border border-amber-400/30 object-cover">
@@ -55,17 +55,17 @@
         </div>
       </div>
 
-      <!-- 題目畫面 -->
+      <!-- Quiz Screen -->
       <div v-if="gameState === 'quiz'" class="space-y-6">
         <div class="card-green p-6 rounded-xl border border-amber-400/30 space-y-4">
           <div class="flex justify-between items-center">
             <span class="bg-amber-400/20 text-amber-300 border border-amber-400/40 px-3 py-1 rounded-full text-sm font-bold">
-              {{ currentQ.isBonus ? '🧾 全場唯一加分題／主管考核題 (Bonus Question)' : '💰 普通題 第 ' + (currentQIndex + 1) + ' 題 (Question ' + (currentQIndex + 1) + ')' }}
+              QUESTION {{ currentQIndex + 1 }}
             </span>
             <span class="text-2xl font-black text-rose-400">⏱️ {{ timer }}s</span>
           </div>
 
-          <!-- Peppa Pig 客人情境對話區塊 -->
+          <!-- Guest Scenario -->
           <div class="bg-emerald-950/80 p-4 rounded-xl border border-emerald-700/60 space-y-2">
             <div class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded font-bold inline-block">
               {{ currentQ.guestName }}
@@ -75,13 +75,16 @@
             </div>
           </div>
 
-          <!-- 核心題目區塊 -->
+          <!-- Main Question Area -->
           <div class="bg-emerald-900/40 p-4 rounded-xl border border-emerald-700">
-            <span class="text-xs text-emerald-400 font-mono tracking-widest uppercase">QUESTION</span>
-            <p class="text-xl md:text-2xl font-bold text-amber-200 mt-1">{{ currentQ.question }}</p>
+            <div class="flex justify-between items-center">
+              <span class="text-xs text-emerald-400 font-mono tracking-widest uppercase">QUESTION</span>
+              <span v-if="currentQ.jpHint" class="text-xs bg-emerald-800 text-amber-200 px-2 py-0.5 rounded font-sans">🇯🇵 {{ currentQ.jpHint }}</span>
+            </div>
+            <p class="text-xl md:text-2xl font-bold text-amber-200 mt-1 whitespace-pre-line">{{ currentQ.question }}</p>
           </div>
 
-          <!-- 選項區域 -->
+          <!-- Options -->
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div v-for="(opt, idx) in currentQ.options" :key="idx" 
                  :class="['p-4 rounded-xl border font-semibold text-base md:text-lg transition flex items-start gap-2', 
@@ -91,26 +94,26 @@
             </div>
           </div>
 
-          <!-- 答題後的客人回饋台詞 -->
+          <!-- Feedback -->
           <div v-if="showAnswer" class="p-4 rounded-xl bg-amber-400/10 border border-amber-400/30 text-amber-200 space-y-1">
-            <span class="font-bold text-amber-300">💬 客人回饋 (Guest Reaction):</span>
+            <span class="font-bold text-amber-300">💬 Guest Reaction:</span>
             <p class="italic">"{{ currentQ.feedback.correct }}"</p>
           </div>
         </div>
 
-        <!-- 控制按鈕 -->
+        <!-- Controls -->
         <div class="flex justify-between items-center">
-          <div class="text-emerald-300/70">已收到回答 / Answers Received：{{ answeredCount }} / {{ players.length }}</div>
-          <button v-if="!showAnswer" @click="revealAnswer" class="bg-emerald-600 hover:bg-emerald-500 px-6 py-2 rounded-lg font-bold text-white">公布答案 / Reveal Answer</button>
+          <div class="text-emerald-300/70">Answers Received: {{ answeredCount }} / {{ players.length }}</div>
+          <button v-if="!showAnswer" @click="revealAnswer" class="bg-emerald-600 hover:bg-emerald-500 px-6 py-2 rounded-lg font-bold text-white">Reveal Answer</button>
           <button v-else @click="nextQuestion" class="bg-amber-400 hover:bg-amber-300 text-emerald-950 px-6 py-2 rounded-lg font-bold">
-            {{ currentQIndex + 1 < questions.length ? '下一題 😋 / Next Question' : '結算今日收入 💸 / Show Leaderboard' }}
+            {{ currentQIndex + 1 < questions.length ? 'Next Question 😋' : 'Final Results 💸' }}
           </button>
         </div>
       </div>
 
-      <!-- 排行榜 (顯示服務生自製頭像) -->
+      <!-- Leaderboard -->
       <div v-if="gameState === 'leaderboard'" class="card-green p-6 rounded-xl space-y-4 border border-amber-400/30">
-        <h2 class="text-3xl font-black text-amber-300 text-center">🏆 今日服務生結算排行榜 / Daily Server Leaderboard</h2>
+        <h2 class="text-3xl font-black text-amber-300 text-center">🏆 Server Leaderboard</h2>
         <div class="space-y-3">
           <div v-for="(p, rank) in sortedPlayers" :key="p.id" 
                :class="['flex justify-between items-center p-4 rounded-xl font-bold', 
@@ -119,31 +122,31 @@
               <span class="text-2xl">{{ rank === 0 ? '🥇' : rank === 1 ? '🥈' : rank === 2 ? '🥉' : '#' + (rank + 1) }}</span>
               <img :src="p.avatar || 'https://api.dicebear.com/7.x/bottts/svg?seed=' + p.name" class="w-12 h-12 rounded-full border border-amber-400/40 bg-black/20 object-cover">
               <span class="text-xl">{{ p.name }}</span>
-              <span v-if="rank === 0" class="bg-emerald-950 text-amber-300 text-xs px-2 py-1 rounded border border-amber-400/40">🎁 獲得能飛體驗卡 / Flight Pass Prize</span>
+              <span v-if="rank === 0" class="bg-emerald-950 text-amber-300 text-xs px-2.5 py-1 rounded border border-amber-400/40 font-bold">👑 Cow-World Awakener (哞界覺醒者)</span>
             </div>
-            <div class="text-xl font-mono">${{ p.score.toLocaleString() }}</div>
+            <div class="text-xl font-mono">{{ p.score }} pts</div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- 玩家 (手機端) 介面 -->
+    <!-- Player Screen -->
     <div v-if="role === 'player'" class="space-y-6">
-      <!-- 登入頁：包含手繪服務生長相畫板 -->
+      <!-- Login & Portrait -->
       <div v-if="!joined" class="card-green p-6 rounded-xl space-y-4 max-w-md mx-auto border border-emerald-800">
-        <h2 class="text-2xl font-bold text-amber-300 text-center">打卡上班 / Clock In</h2>
+        <h2 class="text-2xl font-bold text-amber-300 text-center">Clock In</h2>
         <div>
-          <label class="block text-sm text-emerald-300/70 mb-1">房號 / Room Code</label>
-          <input v-model="inputRoomId" type="text" placeholder="例如：8890" class="w-full bg-emerald-900/80 p-3 rounded-lg border border-emerald-700 text-amber-200 font-mono uppercase">
+          <label class="block text-sm text-emerald-300/70 mb-1">Room Code</label>
+          <input v-model="inputRoomId" type="text" placeholder="e.g. 8890" class="w-full bg-emerald-900/80 p-3 rounded-lg border border-emerald-700 text-amber-200 font-mono uppercase">
         </div>
         <div>
-          <label class="block text-sm text-emerald-300/70 mb-1">你的名字📓 / Your Name</label>
-          <input v-model="playerName" type="text" placeholder="請輸入名字 / Enter Name" class="w-full bg-emerald-900/80 p-3 rounded-lg border border-emerald-700 text-white">
+          <label class="block text-sm text-emerald-300/70 mb-1">Your Name</label>
+          <input v-model="playerName" type="text" placeholder="Enter name" class="w-full bg-emerald-900/80 p-3 rounded-lg border border-emerald-700 text-white">
         </div>
 
-        <!-- 繪製頭像區塊（完全保留） -->
+        <!-- Canvas Avatar -->
         <div>
-          <label class="block text-sm text-emerald-300/70 mb-1">繪製你的服務生肖像 / Draw Your Server Portrait</label>
+          <label class="block text-sm text-emerald-300/70 mb-1">Draw Your Portrait</label>
           <div class="flex flex-col items-center bg-emerald-950 p-3 rounded-lg border border-emerald-700 space-y-2">
             <canvas ref="drawCanvas" width="200" height="200" class="bg-white rounded-lg cursor-crosshair touch-none"></canvas>
             <div class="flex items-center gap-2">
@@ -151,29 +154,28 @@
                       @click="penColor = c" 
                       :style="{ backgroundColor: c }" 
                       :class="['w-7 h-7 rounded-full border-2', penColor === c ? 'border-amber-300 scale-110' : 'border-transparent']"></button>
-              <button @click="clearCanvas" class="text-xs bg-rose-900/80 text-rose-200 px-2 py-1 rounded border border-rose-700 ml-2">重畫 / Clear</button>
+              <button @click="clearCanvas" class="text-xs bg-rose-900/80 text-rose-200 px-2 py-1 rounded border border-rose-700 ml-2">Clear</button>
             </div>
           </div>
         </div>
 
         <button @click="joinHost" :disabled="!inputRoomId || !playerName" class="w-full bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-emerald-950 font-bold py-3 rounded-lg shadow-md">
-          連線打卡 / Join Game
+          Join Game
         </button>
       </div>
 
-      <!-- 遊戲進行頁（頂部顯示自己的自製頭像） -->
+      <!-- In-Game Area -->
       <div v-else class="space-y-6">
         <div class="card-green p-4 rounded-xl flex justify-between items-center border border-emerald-800">
           <div class="flex items-center gap-3">
             <img :src="myAvatar" class="w-10 h-10 rounded-full border border-amber-300 bg-white object-cover">
             <span class="font-bold text-emerald-100">🧑‍🍳 {{ playerName }}</span>
           </div>
-          <span class="font-mono text-amber-300 font-bold">今日收入 / Income: ${{ playerScore.toLocaleString() }}</span>
+          <span class="font-mono text-amber-300 font-bold">Score: {{ playerScore }} pts</span>
         </div>
 
         <div v-if="playerState === 'waiting'" class="text-center py-16 card-green rounded-xl border border-emerald-800 space-y-2">
-          <p class="text-xl text-emerald-200/80 animate-pulse">☕ 等待下一位客人到訪</p>
-          <p class="text-xs text-emerald-400/60 font-mono">Waiting for the next guest...</p>
+          <p class="text-xl text-emerald-200/80 animate-pulse">☕ Waiting for next question...</p>
         </div>
 
         <div v-if="playerState === 'answering'" class="grid grid-cols-2 gap-4">
@@ -185,36 +187,29 @@
         </div>
 
         <div v-if="playerState === 'submitted'" class="text-center py-16 card-green rounded-xl space-y-2 border border-emerald-800">
-          <p class="text-2xl font-bold text-amber-300">✓ 已送出餐點！ / Order Submitted!</p>
-          <p class="text-emerald-300/70">請看大螢幕等待公布結果... / Please look at the main screen...</p>
+          <p class="text-2xl font-bold text-amber-300">✓ Choice Submitted!</p>
+          <p class="text-emerald-300/70">Look at the main screen...</p>
         </div>
 
         <div v-if="playerState === 'result'" class="text-center py-12 card-green rounded-xl space-y-4 border border-emerald-800">
           <div v-if="lastResult.isCorrect" class="text-3xl md:text-4xl font-black text-amber-300">
-            🎉 餐點送對了！<br><span class="text-lg font-normal opacity-90">Correct Order!</span>
-          </div>
-          <div v-else-if="lastResult.isBonus" class="text-2xl font-bold text-amber-200 p-4 border border-amber-400/30 bg-amber-400/10 rounded-xl space-y-1">
-            <div>😐 主管對於你的表現感到失望</div>
-            <div class="text-sm font-normal opacity-80">Manager is disappointed with your performance</div>
+            🎉 Correct! (+100 pts)
           </div>
           <div v-else class="text-2xl md:text-3xl font-black text-rose-400 space-y-1">
-            <div>😠 客人感到不開心！</div>
-            <div class="text-sm font-normal opacity-80">Guest is unhappy!</div>
-            <span class="text-xl font-mono mt-2 block text-rose-300">−114,514</span>
+            <div>😠 Wrong! (-100 pts)</div>
           </div>
 
-          <!-- 客人專屬台詞對話框 -->
           <div class="p-4 rounded-xl bg-emerald-950 border border-emerald-700 text-amber-100 text-base max-w-md mx-auto">
-            <span class="text-xs text-amber-400 font-bold block mb-1">💬 客人對你說：</span>
+            <span class="text-xs text-amber-400 font-bold block mb-1">💬 Guest Reaction:</span>
             <p class="italic">"{{ lastResult.feedback }}"</p>
           </div>
 
-          <p class="text-emerald-300/70 pt-2 text-sm">等待主持人切換下一題... / Waiting for host...</p>
+          <p class="text-emerald-300/70 pt-2 text-sm">Waiting for host...</p>
         </div>
 
         <div v-if="playerState === 'ended'" class="text-center py-12 card-green rounded-xl space-y-4 border border-emerald-800">
-          <h2 class="text-3xl font-bold text-amber-300">營業結束！ / Service Ended!</h2>
-          <p class="text-2xl font-mono">最終今日收入 / Total Income：<br><span class="text-amber-200 text-3xl font-bold">${{ playerScore.toLocaleString() }}</span></p>
+          <h2 class="text-3xl font-bold text-amber-300">Game Over!</h2>
+          <p class="text-2xl font-mono">Final Score:<br><span class="text-amber-200 text-3xl font-bold">{{ playerScore }} pts</span></p>
         </div>
       </div>
     </div>
@@ -230,14 +225,14 @@
         scenario: [
           { speaker: "Mummy Pig", line: "Now, everyone, afternoon tea is a very special occasion. We must remember our manners!" }
         ],
-        question: "What should they do during afternoon tea?", 
-        options: ["Talking out loud", "Be graceful and polite", "Take actions before the host’s signals", "Leave without saying goodbye"], 
+        jpHint: "Etiquette: マナー / 禮儀",
+        question: "What should guests do during afternoon tea?", 
+        options: ["Talk out loud", "Be graceful and polite", "Take action before host's signal", "Leave without saying goodbye"], 
         answer: 1, 
         feedback: {
           correct: "Very good! Good manners are always important.",
           wrong: "Hmm… let’s remember to be graceful and polite."
-        },
-        isBonus: false 
+        }
       },
       { 
         guestName: "George & Peppa 🦖🐷",
@@ -245,100 +240,98 @@
           { speaker: "George", line: "Peppa! I’m hungry! Can I have cake?" },
           { speaker: "Peppa Pig", line: "Not yet, George! What do we have first at afternoon tea?" }
         ],
-        question: "What would they have first during afternoon tea?", 
-        options: ["Tea", "Cakes and dessert", "Sandwiches", "Scones"], 
+        jpHint: "Order: 順番 / 下午茶順序",
+        question: "What should be eaten first during afternoon tea?", 
+        options: ["Tea", "Cakes and desserts", "Sandwiches", "Scones"], 
         answer: 2, 
         feedback: {
-          correct: "Dine-soer! ...I mean, Sandwiches first! Then cake!",
+          correct: "Sandwiches first! Then cake!",
           wrong: "Waaaaah! But I wanted cake!"
-        },
-        isBonus: false 
+        }
       },
       { 
         guestName: "Peppa Pig & Suzy Sheep 🐷🐑",
         scenario: [
-          { speaker: "Peppa Pig", line: "I’m going to a very fancy social activity! What should I do there?" },
+          { speaker: "Peppa Pig", line: "I’m going to a fancy social activity! What should I do there?" },
           { speaker: "Suzy Sheep", line: "Maybe you could invite some people to your home?" }
         ],
-        question: "What would they do when attending a social activity?", 
-        options: ["Use social media", "Take beautiful pictures", "Invite people to their home", "Play games loudly on their phone"], 
+        jpHint: "Gathering: 交流 / 社交活動",
+        question: "What do people traditionally do when attending a social activity?", 
+        options: ["Use social media", "Take pictures", "Invite people to their home", "Play games on phones"], 
         answer: 2, 
         feedback: {
-          correct: "That’s right! It’s lovely to have people over for tea!",
-          wrong: "Baa! Think about what people traditionally did at social gatherings!"
-        },
-        isBonus: false 
+          correct: "That’s right! It’s lovely to invite people over!",
+          wrong: "Baa! Think about traditional social habits!"
+        }
       },
       { 
         guestName: "Daddy Pig 🐷",
         scenario: [
           { speaker: "Daddy Pig", line: "Ah, tea cups! I am an expert in sophisticated dining." },
-          { speaker: "Peppa Pig", line: "Are you really an expert, Daddy?" },
-          { speaker: "Daddy Pig", line: "Of course! Let me test our server." }
+          { speaker: "Peppa Pig", line: "Are you really an expert, Daddy?" }
         ],
+        jpHint: "Porcelain: 磁器 / 瓷器",
         question: "What material did nobles use for their tea cups?", 
         options: ["Metal", "Porcelain", "Wood", "Plastic"], 
         answer: 1, 
         feedback: {
-          correct: "Exactly! Porcelain. I knew that all along, of course!",
-          wrong: "Oh dear… perhaps I’m not quite as sophisticated as I thought."
-        },
-        isBonus: false 
+          correct: "Exactly! Porcelain was the elegant choice.",
+          wrong: "Oh dear… think of something delicate and fancy."
+        }
       },
       { 
         guestName: "Granny Pig 👵",
         scenario: [
-          { speaker: "Granny Pig", line: "Tea has quite a long and fascinating history, you know." },
-          { speaker: "Peppa Pig", line: "Who made tea popular with the nobles, Granny?" }
+          { speaker: "Granny Pig", line: "Tea has a long history. Who made tea popular among nobles, Peppa?" },
+          { speaker: "Peppa Pig", line: "Let's test our server!" }
         ],
-        question: "Who made drinking tea popular among the nobles?", 
+        jpHint: "Catherine of Braganza: キャサリン王妃 (ポルトガル出身の王妃)",
+        question: "Who made drinking tea popular among English nobles?", 
         options: ["Kass", "Civilians", "Catherine of Braganza", "Queen Elizabeth I"], 
         answer: 2, 
         feedback: {
-          correct: "That’s right, my dear! Catherine of Braganza made tea fashionable at court.",
-          wrong: "Not quite, dear. Think of a queen who came from Portugal."
-        },
-        isBonus: true 
+          correct: "That’s right! Catherine of Braganza made tea fashionable.",
+          wrong: "Not quite. Think of a queen from Portugal."
+        }
       },
       { 
         guestName: "Suzy Sheep & Peppa Pig 🐑🐷",
         scenario: [
-          { speaker: "Suzy Sheep", line: "Peppa, look! I can drink tea with my pinky finger sticking out!" },
-          { speaker: "Peppa Pig", line: "Oooh! Does that make you ultra-fancy, Suzy?" }
+          { speaker: "Suzy Sheep", line: "Look! I can drink tea with my pinky finger sticking out!" },
+          { speaker: "Peppa Pig", line: "Oooh! Is that fancy?" }
         ],
-        question: "In traditional British tea etiquette, what does sticking your pinky finger out while drinking tea actually mean?", 
+        jpHint: "Pinky Myth: 小指を立てるマナーの誤解",
+        question: "In traditional tea etiquette, what does sticking your pinky finger out mean?", 
         options: [
-          "You are ultra-fancy, super classy, and clearly born a royal!", 
-          "Your pinky finger is overheating and urgently needs some cool air.", 
-          "You are being snobbish, trying too hard to get attention, and showing bad manners!", 
-          "You are secretly trying to challenge the person sitting across from you to a pinky promise."
+          "You are ultra-fancy and royal!", 
+          "Your pinky finger needs cool air.", 
+          "You are being snobbish and showing bad manners!", 
+          "You want to make a pinky promise."
         ], 
         answer: 2, 
         feedback: {
-          correct: "See, Suzy? Sticking your pinky out is actually bad manners!",
-          wrong: "Oh dear! Don't let that sneaky little finger fool you!"
-        },
-        isBonus: false 
+          correct: "Quite right! Sticking your pinky out is bad manners.",
+          wrong: "Oh dear! Don't let that little finger fool you!"
+        }
       },
       { 
-        guestName: "George & Daddy Pig 🦖🐷",
+        guestName: "Madame Gazelle 🐐",
         scenario: [
-          { speaker: "George", line: "Oh no! My DINOSAUR is broken! Waaaaah!" },
-          { speaker: "Daddy Pig", line: "Don’t panic, George! I know the ultimate British solution." }
+          { speaker: "Madame Gazelle", line: "Children, let's learn how British people deal with small unexpected troubles!" }
         ],
-        question: "What would Daddy Pig say?", 
+        jpHint: "Kettle: やかん (Put the kettle on: お茶を淹れる準備をする)",
+        question: "Edmond Elephant says: \"Oh no! My TEDDY is broken!\"\nMr. Elephant replies: \"Don't panic!\"\n\nWhat would Mr. Elephant say next?", 
         options: [
           "Shall I put the kettle on?", 
           "Shall I fight the rain?", 
-          "Shall I buy a new phone for you?", 
+          "Shall I buy a new phone?", 
           "Shall I call the principal?"
         ], 
         answer: 0, 
         feedback: {
-          correct: "There we are! A nice cup of tea makes everything better.",
-          wrong: "Hmm… I think putting the kettle on would be much more helpful!"
-        },
-        isBonus: false 
+          correct: "There we are! Nothing says British quite like putting the kettle on.",
+          wrong: "Hmm… a cup of tea would be much more helpful!"
+        }
       }
     ];
 
@@ -352,15 +345,14 @@
         const gameState = ref('lobby');
         const playerState = ref('waiting');
         const currentQIndex = ref(0);
-        const timer = ref(15);
+        const timer = ref(30);
         const timerInterval = ref(null);
         const showAnswer = ref(false);
         const joined = ref(false);
         const playerScore = ref(0);
-        const lastResult = ref({ isCorrect: false, isBonus: false, feedback: '' });
+        const lastResult = ref({ isCorrect: false, feedback: '' });
         const submittedThisQuestion = ref(false);
 
-        // 繪圖板變數
         const drawCanvas = ref(null);
         const penColor = ref('#000000');
         const myAvatar = ref('');
@@ -371,13 +363,11 @@
         let hostConn = null;
         const playerConns = ref([]);
         const answersReceived = ref({});
-        let questionStartAt = null;
 
         const currentQ = computed(() => QUESTIONS[currentQIndex.value]);
         const answeredCount = computed(() => Object.keys(answersReceived.value).length);
         const sortedPlayers = computed(() => [...players.value].sort((a, b) => b.score - a.score));
 
-        // 初始化畫畫板事件
         const initCanvas = () => {
           if (!drawCanvas.value) return;
           const canvas = drawCanvas.value;
@@ -448,7 +438,7 @@
             peer.on('connection', (conn) => {
               conn.on('data', (data) => {
                 if (data && data.type === 'JOIN') {
-                  const name = (data.name || '').toString().trim().slice(0, 50) || '匿名';
+                  const name = (data.name || '').toString().trim().slice(0, 50) || 'Server';
                   const avatar = data.avatar || '';
                   if (!players.value.find(p => p.id === conn.peer)) {
                     players.value.push({ id: conn.peer, name, score: 0, avatar });
@@ -458,7 +448,7 @@
                   broadcast({ type: 'PLAYERS_UPDATE', players: players.value.map(p => ({ id: p.id, name: p.name, score: p.score, avatar: p.avatar })) });
                 } else if (data && data.type === 'SUBMIT_ANSWER') {
                   if (!answersReceived.value[conn.peer]) {
-                    answersReceived.value[conn.peer] = { answer: data.answer, receivedAt: Date.now() };
+                    answersReceived.value[conn.peer] = { answer: data.answer };
                   }
                 }
               });
@@ -495,8 +485,7 @@
           gameState.value = 'quiz';
           showAnswer.value = false;
           answersReceived.value = {};
-          timer.value = 15;
-          questionStartAt = Date.now();
+          timer.value = 30; // 調整為 30 秒
           broadcast({ type: 'START_Q' });
 
           clearInterval(timerInterval.value);
@@ -514,18 +503,11 @@
             const record = answersReceived.value[p.id];
             let isCorrect = false;
 
-            if (record && typeof record.receivedAt === 'number') {
-              const elapsedSec = (record.receivedAt - questionStartAt) / 1000;
-              const timeLeft = Math.max(0, Math.ceil(15 - elapsedSec));
-              if (record.answer === q.answer) {
-                isCorrect = true;
-                if (q.isBonus) { p.score += 5162129; } 
-                else { p.score += (100 + Math.floor(timeLeft * 50)); }
-              } else {
-                if (!q.isBonus) p.score -= 114514;
-              }
+            if (record && record.answer === q.answer) {
+              isCorrect = true;
+              p.score += 100; // 答對 +100
             } else {
-              if (!q.isBonus) p.score -= 114514;
+              p.score -= 100; // 答錯或未答 -100
             }
 
             const feedbackLine = isCorrect ? q.feedback.correct : q.feedback.wrong;
@@ -535,7 +517,6 @@
               safeSend(conn, { 
                 type: 'Q_RESULT', 
                 isCorrect, 
-                isBonus: q.isBonus, 
                 score: p.score,
                 feedback: feedbackLine
               });
@@ -581,7 +562,7 @@
                 submittedThisQuestion.value = false;
               } else if (data.type === 'Q_RESULT') {
                 playerScore.value = data.score;
-                lastResult.value = { isCorrect: data.isCorrect, isBonus: data.isBonus, feedback: data.feedback };
+                lastResult.value = { isCorrect: data.isCorrect, feedback: data.feedback };
                 playerState.value = 'result';
               } else if (data.type === 'GAME_END') {
                 playerState.value = 'ended';
