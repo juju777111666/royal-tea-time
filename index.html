@@ -94,10 +94,16 @@
             </div>
           </div>
 
-          <!-- Feedback -->
-          <div v-if="showAnswer" class="p-4 rounded-xl bg-amber-400/10 border border-amber-400/30 text-amber-200 space-y-1">
-            <span class="font-bold text-amber-300">💬 Guest Reaction:</span>
-            <p class="italic">"{{ currentQ.feedback.correct }}"</p>
+          <!-- Host Overall Reaction & Correct Count Banner -->
+          <div v-if="showAnswer" class="p-5 rounded-xl bg-amber-400/10 border-2 border-amber-400/50 text-amber-200 space-y-3 text-center">
+            <div class="text-sm font-bold text-amber-400 tracking-wider uppercase">Correct Answers Rate</div>
+            <div class="text-4xl md:text-5xl font-black text-amber-300 drop-shadow">
+              {{ correctCount }} <span class="text-2xl text-emerald-400 font-normal">/ {{ players.length }}</span>
+            </div>
+            <div class="pt-2 border-t border-amber-400/20">
+              <span class="font-bold text-amber-300 block text-xs uppercase mb-1">💬 GUEST REACTION</span>
+              <p class="italic text-lg text-amber-100 font-medium">"{{ hostReactionText }}"</p>
+            </div>
           </div>
         </div>
 
@@ -171,7 +177,7 @@
             <img :src="myAvatar" class="w-10 h-10 rounded-full border border-amber-300 bg-white object-cover">
             <span class="font-bold text-emerald-100">🧑‍🍳 {{ playerName }}</span>
           </div>
-          <span class="font-mono text-amber-300 font-bold">Score: {{ playerScore }} pts</span>
+          <span class="font-mono text-amber-300 font-bold">Today's Earnings: {{ playerScore }} pts</span>
         </div>
 
         <div v-if="playerState === 'waiting'" class="text-center py-16 card-green rounded-xl border border-emerald-800 space-y-2">
@@ -191,25 +197,41 @@
           <p class="text-emerald-300/70">Look at the main screen...</p>
         </div>
 
-        <div v-if="playerState === 'result'" class="text-center py-12 card-green rounded-xl space-y-4 border border-emerald-800">
-          <div v-if="lastResult.isCorrect" class="text-3xl md:text-4xl font-black text-amber-300">
-            🎉 Correct! (+100 pts)
-          </div>
-          <div v-else class="text-2xl md:text-3xl font-black text-rose-400 space-y-1">
-            <div>😠 Wrong! (-100 pts)</div>
+        <!-- Player Result & Rank Section -->
+        <div v-if="playerState === 'result'" class="space-y-4">
+          <!-- Answer Result Box -->
+          <div class="text-center py-8 card-green rounded-xl space-y-4 border border-emerald-800">
+            <div v-if="lastResult.isCorrect" class="text-3xl md:text-4xl font-black text-amber-300">
+              🎉 Correct! (+100 pts)
+            </div>
+            <div v-else class="text-2xl md:text-3xl font-black text-rose-400">
+              😠 Wrong! (-100 pts)
+            </div>
+
+            <div class="p-4 rounded-xl bg-emerald-950 border border-emerald-700 text-amber-100 text-base max-w-md mx-auto">
+              <span class="text-xs text-amber-400 font-bold block mb-1">💬 Guest Reaction:</span>
+              <p class="italic">"{{ lastResult.feedback }}"</p>
+            </div>
           </div>
 
-          <div class="p-4 rounded-xl bg-emerald-950 border border-emerald-700 text-amber-100 text-base max-w-md mx-auto">
-            <span class="text-xs text-amber-400 font-bold block mb-1">💬 Guest Reaction:</span>
-            <p class="italic">"{{ lastResult.feedback }}"</p>
+          <!-- Separate Live Rank Box -->
+          <div class="card-green p-5 rounded-xl border-2 border-amber-400/40 text-center space-y-2 bg-gradient-to-b from-emerald-900/90 to-emerald-950">
+            <div class="text-xs font-bold text-emerald-400 uppercase tracking-widest">Live Ranking Standings</div>
+            <div class="text-2xl md:text-3xl font-black text-amber-300">
+              Current Rank: <span class="text-white underline font-mono">#{{ lastResult.rank }}</span> <span class="text-lg text-emerald-300 font-normal">/ {{ lastResult.totalPlayers }}</span>
+            </div>
+            <div class="p-3 rounded-lg bg-emerald-950/80 border border-emerald-700/80 max-w-md mx-auto">
+              <span class="text-xs text-amber-400 font-bold block mb-0.5">🐷 Peppa Pig Says:</span>
+              <p class="italic text-amber-100 font-medium">"{{ lastResult.peppaComment }}"</p>
+            </div>
           </div>
 
-          <p class="text-emerald-300/70 pt-2 text-sm">Waiting for host...</p>
+          <p class="text-emerald-300/70 text-center pt-1 text-sm">Waiting for host...</p>
         </div>
 
         <div v-if="playerState === 'ended'" class="text-center py-12 card-green rounded-xl space-y-4 border border-emerald-800">
           <h2 class="text-3xl font-bold text-amber-300">Game Over!</h2>
-          <p class="text-2xl font-mono">Final Score:<br><span class="text-amber-200 text-3xl font-bold">{{ playerScore }} pts</span></p>
+          <p class="text-2xl font-mono">Today's Earnings:<br><span class="text-amber-200 text-3xl font-bold">{{ playerScore }} pts</span></p>
         </div>
       </div>
     </div>
@@ -225,7 +247,7 @@
         scenario: [
           { speaker: "Mummy Pig", line: "Now, everyone, afternoon tea is a very special occasion. We must remember our manners!" }
         ],
-        jpHint: "Etiquette: マナー / 禮儀",
+        jpHint: "マナー",
         question: "What should guests do during afternoon tea?", 
         options: ["Talk out loud", "Be graceful and polite", "Take action before host's signal", "Leave without saying goodbye"], 
         answer: 1, 
@@ -240,7 +262,7 @@
           { speaker: "George", line: "Peppa! I’m hungry! Can I have cake?" },
           { speaker: "Peppa Pig", line: "Not yet, George! What do we have first at afternoon tea?" }
         ],
-        jpHint: "Order: 順番 / 下午茶順序",
+        jpHint: "じゅんばん",
         question: "What should be eaten first during afternoon tea?", 
         options: ["Tea", "Cakes and desserts", "Sandwiches", "Scones"], 
         answer: 2, 
@@ -255,7 +277,7 @@
           { speaker: "Peppa Pig", line: "I’m going to a fancy social activity! What should I do there?" },
           { speaker: "Suzy Sheep", line: "Maybe you could invite some people to your home?" }
         ],
-        jpHint: "Gathering: 交流 / 社交活動",
+        jpHint: "こうりゅう",
         question: "What do people traditionally do when attending a social activity?", 
         options: ["Use social media", "Take pictures", "Invite people to their home", "Play games on phones"], 
         answer: 2, 
@@ -270,7 +292,7 @@
           { speaker: "Daddy Pig", line: "Ah, tea cups! I am an expert in sophisticated dining." },
           { speaker: "Peppa Pig", line: "Are you really an expert, Daddy?" }
         ],
-        jpHint: "Porcelain: 磁器 / 瓷器",
+        jpHint: "じき",
         question: "What material did nobles use for their tea cups?", 
         options: ["Metal", "Porcelain", "Wood", "Plastic"], 
         answer: 1, 
@@ -285,7 +307,7 @@
           { speaker: "Granny Pig", line: "Tea has a long history. Who made tea popular among nobles, Peppa?" },
           { speaker: "Peppa Pig", line: "Let's test our server!" }
         ],
-        jpHint: "Catherine of Braganza: キャサリン王妃 (ポルトガル出身の王妃)",
+        jpHint: "キャサリンじょうおう",
         question: "Who made drinking tea popular among English nobles?", 
         options: ["Kass", "Civilians", "Catherine of Braganza", "Queen Elizabeth I"], 
         answer: 2, 
@@ -300,7 +322,7 @@
           { speaker: "Suzy Sheep", line: "Look! I can drink tea with my pinky finger sticking out!" },
           { speaker: "Peppa Pig", line: "Oooh! Is that fancy?" }
         ],
-        jpHint: "Pinky Myth: 小指を立てるマナーの誤解",
+        jpHint: "こゆびのマナー",
         question: "In traditional tea etiquette, what does sticking your pinky finger out mean?", 
         options: [
           "You are ultra-fancy and royal!", 
@@ -319,7 +341,7 @@
         scenario: [
           { speaker: "Madame Gazelle", line: "Children, let's learn how British people deal with small unexpected troubles!" }
         ],
-        jpHint: "Kettle: やかん (Put the kettle on: お茶を淹れる準備をする)",
+        jpHint: "やかん",
         question: "Edmond Elephant says: \"Oh no! My TEDDY is broken!\"\nMr. Elephant replies: \"Don't panic!\"\n\nWhat would Mr. Elephant say next?", 
         options: [
           "Shall I put the kettle on?", 
@@ -350,7 +372,7 @@
         const showAnswer = ref(false);
         const joined = ref(false);
         const playerScore = ref(0);
-        const lastResult = ref({ isCorrect: false, feedback: '' });
+        const lastResult = ref({ isCorrect: false, feedback: '', rank: 1, totalPlayers: 1, peppaComment: '' });
         const submittedThisQuestion = ref(false);
 
         const drawCanvas = ref(null);
@@ -367,6 +389,35 @@
         const currentQ = computed(() => QUESTIONS[currentQIndex.value]);
         const answeredCount = computed(() => Object.keys(answersReceived.value).length);
         const sortedPlayers = computed(() => [...players.value].sort((a, b) => b.score - a.score));
+
+        // 計算答對人數
+        const correctCount = computed(() => {
+          const q = currentQ.value;
+          let count = 0;
+          players.value.forEach(p => {
+            const rec = answersReceived.value[p.id];
+            if (rec && rec.answer === q.answer) {
+              count++;
+            }
+          });
+          return count;
+        });
+
+        // 根據答對人數比例觸發的 Host 評語
+        const hostReactionText = computed(() => {
+          const total = players.value.length;
+          if (total === 0) return "Oink! Hmm... How interesting!";
+          const count = correctCount.value;
+          const ratio = count / total;
+
+          if (ratio > 0.5) {
+            return "Oink! Wow! I love many of your service!";
+          } else if (ratio === 0.5) {
+            return "Oink! Hmm... How interesting!";
+          } else {
+            return "Oink! You are such unprofessional waiters! You MUST do better!";
+          }
+        });
 
         const initCanvas = () => {
           if (!drawCanvas.value) return;
@@ -485,7 +536,7 @@
           gameState.value = 'quiz';
           showAnswer.value = false;
           answersReceived.value = {};
-          timer.value = 30; // 調整為 30 秒
+          timer.value = 30;
           broadcast({ type: 'START_Q' });
 
           clearInterval(timerInterval.value);
@@ -499,18 +550,39 @@
           showAnswer.value = true;
           const q = currentQ.value;
 
+          // 結算得分
           players.value.forEach(p => {
             const record = answersReceived.value[p.id];
-            let isCorrect = false;
-
             if (record && record.answer === q.answer) {
-              isCorrect = true;
-              p.score += 100; // 答對 +100
+              p.score += 100;
             } else {
-              p.score -= 100; // 答錯或未答 -100
+              p.score -= 100;
             }
+          });
 
+          // 計算排行榜排名
+          const ranked = [...players.value].sort((a, b) => b.score - a.score);
+          const totalCount = ranked.length;
+
+          players.value.forEach(p => {
+            const record = answersReceived.value[p.id];
+            const isCorrect = record && record.answer === q.answer;
             const feedbackLine = isCorrect ? q.feedback.correct : q.feedback.wrong;
+
+            // 計算名次 (1-based)
+            const myRank = ranked.findIndex(r => r.id === p.id) + 1;
+
+            // 佩佩豬動態排名評語 (童趣淘氣英文)
+            let peppaComment = "";
+            if (myRank <= 3) {
+              peppaComment = "Whoa, how are you so super awesome?!";
+            } else if (myRank <= Math.ceil(totalCount / 3)) {
+              peppaComment = "Ooh, this server actually knows their stuff!";
+            } else if (myRank <= Math.ceil(totalCount / 2)) {
+              peppaComment = "Come on, step it up a bit!";
+            } else {
+              peppaComment = "Sigh... your service quality is super worrying!";
+            }
 
             const conn = playerConns.value.find(c => c.peer === p.id);
             if (conn) {
@@ -518,7 +590,10 @@
                 type: 'Q_RESULT', 
                 isCorrect, 
                 score: p.score,
-                feedback: feedbackLine
+                feedback: feedbackLine,
+                rank: myRank,
+                totalPlayers: totalCount,
+                peppaComment: peppaComment
               });
             }
           });
@@ -562,7 +637,13 @@
                 submittedThisQuestion.value = false;
               } else if (data.type === 'Q_RESULT') {
                 playerScore.value = data.score;
-                lastResult.value = { isCorrect: data.isCorrect, feedback: data.feedback };
+                lastResult.value = { 
+                  isCorrect: data.isCorrect, 
+                  feedback: data.feedback,
+                  rank: data.rank,
+                  totalPlayers: data.totalPlayers,
+                  peppaComment: data.peppaComment
+                };
                 playerState.value = 'result';
               } else if (data.type === 'GAME_END') {
                 playerState.value = 'ended';
@@ -588,6 +669,7 @@
           role, roomId, inputRoomId, playerName, players, gameState, playerState,
           questions: QUESTIONS, currentQIndex, currentQ, timer, showAnswer, joined,
           playerScore, lastResult, answeredCount, sortedPlayers, submittedThisQuestion,
+          correctCount, hostReactionText,
           drawCanvas, penColor, myAvatar, clearCanvas,
           initHost, startGame, revealAnswer, nextQuestion, joinHost, submitAnswer
         };
