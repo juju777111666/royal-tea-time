@@ -199,10 +199,10 @@
 
         <!-- Player Result & Rank Section -->
         <div v-if="playerState === 'result'" class="space-y-4">
-          <!-- Answer Result Box (Swapped style: Emerald-900 Gradient background + Gold Border) -->
+          <!-- Answer Result Box -->
           <div class="text-center py-8 p-5 rounded-xl border-2 border-amber-400/40 bg-gradient-to-b from-emerald-900/90 to-emerald-950 space-y-4">
             <div v-if="lastResult.isCorrect" class="text-3xl md:text-4xl font-black text-amber-300">
-              🎉 Correct! (+100 pts)
+              🎉 Correct! (+{{ lastResult.pointsEarned }} pts)
             </div>
             <div v-else class="text-2xl md:text-3xl font-black text-rose-400">
               😠 Wrong! (-100 pts)
@@ -214,7 +214,7 @@
             </div>
           </div>
 
-          <!-- Separate Live Rank Box (Swapped style: Card Green background + Normal Green Border) -->
+          <!-- Live Rank Box -->
           <div class="card-green p-5 rounded-xl border border-emerald-800 text-center space-y-2">
             <div class="text-2xl md:text-3xl font-black text-amber-300">
               Current Rank: <span class="text-white underline font-mono">#{{ lastResult.rank }}</span> <span class="text-lg text-emerald-300 font-normal">/ {{ lastResult.totalPlayers }}</span>
@@ -306,7 +306,6 @@
           { speaker: "Granny Pig", line: "Tea has a long history. Who made tea popular among nobles, Peppa?" },
           { speaker: "Peppa Pig", line: "Let's test our server!" }
         ],
-        jpHint: "Queen Catherine: キャサリンじょうおう",
         question: "Who made drinking tea popular among English nobles?", 
         options: ["Kass", "Civilians", "Catherine of Braganza", "Queen Elizabeth I"], 
         answer: 2, 
@@ -321,7 +320,7 @@
           { speaker: "Suzy Sheep", line: "Look! I can drink tea with my pinky finger sticking out!" },
           { speaker: "Peppa Pig", line: "Oooh! Is that fancy?" }
         ],
-        jpHint: "Pinky Etiquette: こゆびのマナー",
+        jpHint: "Pinky finger: こゆび",
         question: "In traditional tea etiquette, what does sticking your pinky finger out mean?", 
         options: [
           "You are ultra-fancy and royal!", 
@@ -340,7 +339,6 @@
         scenario: [
           { speaker: "Madame Gazelle", line: "Children, let's learn how British people deal with small unexpected troubles!" }
         ],
-        jpHint: "Kettle: やかん",
         question: "Edmond Elephant says: \"Oh no! My TEDDY is broken!\"\nMr. Elephant replies: \"Don't panic!\"\n\nWhat would Mr. Elephant say next?", 
         options: [
           "Shall I put the kettle on?", 
@@ -371,7 +369,7 @@
         const showAnswer = ref(false);
         const joined = ref(false);
         const playerScore = ref(0);
-        const lastResult = ref({ isCorrect: false, feedback: '', rank: 1, totalPlayers: 1, peppaComment: '' });
+        const lastResult = ref({ isCorrect: false, pointsEarned: 0, feedback: '', rank: 1, totalPlayers: 1, peppaComment: '' });
         const submittedThisQuestion = ref(false);
 
         const drawCanvas = ref(null);
@@ -496,7 +494,10 @@
                   broadcast({ type: 'PLAYERS_UPDATE', players: players.value.map(p => ({ id: p.id, name: p.name, score: p.score, avatar: p.avatar })) });
                 } else if (data && data.type === 'SUBMIT_ANSWER') {
                   if (!answersReceived.value[conn.peer]) {
-                    answersReceived.value[conn.peer] = { answer: data.answer };
+                    answersReceived.value[conn.peer] = { 
+                      answer: data.answer,
+                      timeRemaining: timer.value 
+                    };
                   }
                 }
               });
@@ -547,12 +548,26 @@
           showAnswer.value = true;
           const q = currentQ.value;
 
+          const playerEarnedPoints = {};
+
           players.value.forEach(p => {
             const record = answersReceived.value[p.id];
             if (record && record.answer === q.answer) {
-              p.score += 100;
+              const t = record.timeRemaining;
+              let multiplier = 1;
+              if (t >= 20) {
+                multiplier = 2;   // 前10秒（剩餘20秒以上）
+              } else if (t >= 10) {
+                multiplier = 1.5; // 10~20秒間（剩餘10~19秒）
+              } else {
+                multiplier = 1;   // 20秒後（剩餘10秒以內）
+              }
+              const points = 100 * multiplier;
+              p.score += points;
+              playerEarnedPoints[p.id] = points;
             } else {
               p.score -= 100;
+              playerEarnedPoints[p.id] = -100;
             }
           });
 
@@ -582,6 +597,7 @@
               safeSend(conn, { 
                 type: 'Q_RESULT', 
                 isCorrect, 
+                pointsEarned: playerEarnedPoints[p.id] || 0,
                 score: p.score,
                 feedback: feedbackLine,
                 rank: myRank,
@@ -632,6 +648,7 @@
                 playerScore.value = data.score;
                 lastResult.value = { 
                   isCorrect: data.isCorrect, 
+                  pointsEarned: data.pointsEarned,
                   feedback: data.feedback,
                   rank: data.rank,
                   totalPlayers: data.totalPlayers,
