@@ -57,7 +57,6 @@
           <span>💨 Peppa & George are running in the tea room!</span>
         </div>
         <div class="flex items-end gap-1">
-          <!-- 佩佩豬向量示意與圖像 -->
           <div class="text-6xl md:text-8xl filter drop-shadow-lg">🐷</div>
           <div class="text-5xl md:text-7xl filter drop-shadow-lg">🦖</div>
         </div>
@@ -154,7 +153,7 @@
             </div>
           </div>
 
-          <!-- Host Overall Reaction & Correct Count Banner -->
+          <!-- Host Overall Reaction -->
           <div v-if="showAnswer" class="p-5 rounded-xl bg-amber-400/10 border-2 border-amber-400/50 text-amber-200 space-y-3 text-center">
             <div class="text-sm font-bold text-amber-400 tracking-wider uppercase">Correct Answers Rate</div>
             <div class="text-4xl md:text-5xl font-black text-amber-300 drop-shadow">
@@ -257,7 +256,7 @@
           <p class="text-emerald-300/70">Look at the main screen...</p>
         </div>
 
-        <!-- Player Result & Rank Section -->
+        <!-- Player Result -->
         <div v-if="playerState === 'result'" class="space-y-4">
           <div class="text-center py-8 p-5 rounded-xl border-2 border-amber-400/40 bg-gradient-to-b from-emerald-900/90 to-emerald-950 space-y-4">
             <div v-if="lastResult.isCorrect" class="text-3xl md:text-4xl font-black text-amber-300">
@@ -296,22 +295,17 @@
   </div>
 
   <script>
-    const { createApp, ref, computed, onMounted, nextTick } = Vue;
+    const { createApp, ref, computed, watch, nextTick } = Vue;
 
     const QUESTIONS = [
       { 
         guestName: "Mummy Pig 🐷",
-        scenario: [
-          { speaker: "Mummy Pig", line: "Now, everyone, afternoon tea is a very special occasion. We must remember our manners!" }
-        ],
+        scenario: [{ speaker: "Mummy Pig", line: "Now, everyone, afternoon tea is a very special occasion. We must remember our manners!" }],
         jpHint: "Etiquette: マナー",
         question: "What should guests do during afternoon tea?", 
         options: ["Talk out loud", "Be graceful and polite", "Take action before host's signal", "Leave without saying goodbye"], 
         answer: 1, 
-        feedback: {
-          correct: "Very good! Good manners are always important.",
-          wrong: "Hmm… let’s remember to be graceful and polite."
-        }
+        feedback: { correct: "Very good! Good manners are always important.", wrong: "Hmm… let’s remember to be graceful and polite." }
       },
       { 
         guestName: "George & Peppa 🦖🐷",
@@ -323,10 +317,7 @@
         question: "What should be eaten first during afternoon tea?", 
         options: ["Tea", "Cakes and desserts", "Sandwiches", "Scones"], 
         answer: 2, 
-        feedback: {
-          correct: "Sandwiches first! Then cake!",
-          wrong: "Waaaaah! But I wanted cake!"
-        }
+        feedback: { correct: "Sandwiches first! Then cake!", wrong: "Waaaaah! But I wanted cake!" }
       },
       { 
         guestName: "Peppa Pig & Suzy Sheep 🐷🐑",
@@ -338,10 +329,7 @@
         question: "What do people traditionally do when attending a social activity?", 
         options: ["Use social media", "Take pictures", "Invite people to their home", "Play games on phones"], 
         answer: 2, 
-        feedback: {
-          correct: "That’s right! It’s lovely to invite people over!",
-          wrong: "Baa! Think about traditional social habits!"
-        }
+        feedback: { correct: "That’s right! It’s lovely to invite people over!", wrong: "Baa! Think about traditional social habits!" }
       },
       { 
         guestName: "Daddy Pig 🐷",
@@ -353,10 +341,7 @@
         question: "What material did nobles use for their tea cups?", 
         options: ["Metal", "Porcelain", "Wood", "Plastic"], 
         answer: 1, 
-        feedback: {
-          correct: "Exactly! Porcelain was the elegant choice.",
-          wrong: "Oh dear… think of something delicate and fancy."
-        }
+        feedback: { correct: "Exactly! Porcelain was the elegant choice.", wrong: "Oh dear… think of something delicate and fancy." }
       },
       { 
         guestName: "Granny Pig 👵",
@@ -367,10 +352,7 @@
         question: "Who made drinking tea popular among English nobles?", 
         options: ["Kass", "Civilians", "Catherine of Braganza", "Queen Elizabeth I"], 
         answer: 2, 
-        feedback: {
-          correct: "That’s right! Catherine of Braganza made tea fashionable.",
-          wrong: "Not quite. Think of a queen from Portugal."
-        }
+        feedback: { correct: "That’s right! Catherine of Braganza made tea fashionable.", wrong: "Not quite. Think of a queen from Portugal." }
       },
       { 
         guestName: "Suzy Sheep & Peppa Pig 🐑🐷",
@@ -387,16 +369,11 @@
           "You want to make a pinky promise."
         ], 
         answer: 2, 
-        feedback: {
-          correct: "Quite right! Sticking your pinky out is bad manners.",
-          wrong: "Oh dear! Don't let that little finger fool you!"
-        }
+        feedback: { correct: "Quite right! Sticking your pinky out is bad manners.", wrong: "Oh dear! Don't let that little finger fool you!" }
       },
       { 
         guestName: "Madame Gazelle 🐐",
-        scenario: [
-          { speaker: "Madame Gazelle", line: "Children, let's learn how British people deal with small unexpected troubles!" }
-        ],
+        scenario: [{ speaker: "Madame Gazelle", line: "Children, let's learn how British people deal with small unexpected troubles!" }],
         question: "Edmond Elephant says: \"Oh no! My TEDDY is broken!\"\nMr. Elephant replies: \"Don't panic!\"\n\nWhat would Mr. Elephant say next?", 
         options: [
           "Shall I put the kettle on?", 
@@ -405,10 +382,7 @@
           "Shall I call the principal?"
         ], 
         answer: 0, 
-        feedback: {
-          correct: "There we are! Nothing says British quite like putting the kettle on.",
-          wrong: "Hmm… a cup of tea would be much more helpful!"
-        }
+        feedback: { correct: "There we are! Nothing says British quite like putting the kettle on.", wrong: "Hmm… a cup of tea would be much more helpful!" }
       }
     ];
 
@@ -431,11 +405,14 @@
         const lastResult = ref({ isCorrect: false, pointsEarned: 0, feedback: '', rank: 1, totalPlayers: 1, peppaComment: '' });
         const submittedThisQuestion = ref(false);
 
+        // 控制事件間隔：紀錄上次觸發的題號，初始為 -99
+        const lastSurpriseIndex = ref(-99);
+
         // 快閃突襲動態狀態
         const surpriseEvent = ref({
           active: false,
-          type: 'run', // 'run' 或 'cry'
-          duration: 7, // 預設 7 秒
+          type: 'run',
+          duration: 7,
           timerId: null
         });
 
@@ -459,9 +436,7 @@
           let count = 0;
           players.value.forEach(p => {
             const rec = answersReceived.value[p.id];
-            if (rec && rec.answer === q.answer) {
-              count++;
-            }
+            if (rec && rec.answer === q.answer) count++;
           });
           return count;
         });
@@ -471,27 +446,18 @@
           if (total === 0) return "Oink! Hmm... How interesting!";
           const count = correctCount.value;
           const ratio = count / total;
-
-          if (ratio > 0.5) {
-            return "Oink! Wow! I love many of your service!";
-          } else if (ratio === 0.5) {
-            return "Oink! Hmm... How interesting!";
-          } else {
-            return "Oink! You are such unprofessional waiters! You MUST do better!";
-          }
+          if (ratio > 0.5) return "Oink! Wow! I love many of your service!";
+          if (ratio === 0.5) return "Oink! Hmm... How interesting!";
+          return "Oink! You are such unprofessional waiters! You MUST do better!";
         });
 
-        // 觸發快閃突襲
-        const triggerSurprise = () => {
-          // 清除上一次的定時器
+        // 開啟本地特效 UI
+        const triggerSurpriseLocally = (type) => {
           if (surpriseEvent.value.timerId) clearTimeout(surpriseEvent.value.timerId);
-
-          const types = ['run', 'cry'];
-          const selectedType = types[Math.floor(Math.random() * types.length)];
 
           surpriseEvent.value = {
             active: true,
-            type: selectedType,
+            type: type,
             duration: 7
           };
 
@@ -505,7 +471,6 @@
           }, surpriseEvent.value.duration * 1000);
         };
 
-        // 點擊按鈕使時間縮短 0.5 秒
         const speedUpSurprise = () => {
           if (!surpriseEvent.value.active) return;
           surpriseEvent.value.duration = Math.max(0.5, surpriseEvent.value.duration - 0.5);
@@ -626,18 +591,37 @@
           broadcast({ type: 'PLAYERS_UPDATE', players: players.value.map(p => ({ id: p.id, name: p.name, score: p.score, avatar: p.avatar })) });
         };
 
-        const startGame = () => { currentQIndex.value = 0; startQuestion(); };
+        const startGame = () => { 
+          currentQIndex.value = 0; 
+          lastSurpriseIndex.value = -99;
+          startQuestion(); 
+        };
 
         const startQuestion = () => {
           gameState.value = 'quiz';
           showAnswer.value = false;
           answersReceived.value = {};
           timer.value = 30;
-          broadcast({ type: 'START_Q' });
 
-          // 答題開始時有 50% 機率觸發動態驚喜特效
-          if (Math.random() < 0.5) {
-            triggerSurprise();
+          // 判斷是否觸發突襲特效：
+          // 條件 1：非第 1 題（currentQIndex.value > 0）
+          // 條件 2：距離上次觸發至少隔了 1 題（currentQIndex.value - lastSurpriseIndex.value >= 2）
+          // 條件 3：60% 幾率觸發
+          let surpriseType = null;
+          if (currentQIndex.value > 0 && (currentQIndex.value - lastSurpriseIndex.value >= 2)) {
+            if (Math.random() < 0.6) {
+              const types = ['run', 'cry'];
+              surpriseType = types[Math.floor(Math.random() * types.length)];
+              lastSurpriseIndex.value = currentQIndex.value;
+            }
+          }
+
+          // 廣播給房間內所有人，帶上統一的事件指示
+          broadcast({ type: 'START_Q', surpriseType });
+
+          // Host 本地觸發
+          if (surpriseType) {
+            triggerSurpriseLocally(surpriseType);
           }
 
           clearInterval(timerInterval.value);
@@ -649,7 +633,7 @@
         const revealAnswer = () => {
           clearInterval(timerInterval.value);
           showAnswer.value = true;
-          surpriseEvent.value.active = false; // 結算時停止動態特效
+          surpriseEvent.value.active = false;
           const q = currentQ.value;
 
           const playerEarnedPoints = {};
@@ -658,14 +642,7 @@
             const record = answersReceived.value[p.id];
             if (record && record.answer === q.answer) {
               const t = record.timeRemaining;
-              let multiplier = 1;
-              if (t >= 20) {
-                multiplier = 2;
-              } else if (t >= 10) {
-                multiplier = 1.5;
-              } else {
-                multiplier = 1;
-              }
+              let multiplier = t >= 20 ? 2 : (t >= 10 ? 1.5 : 1);
               const points = 100 * multiplier;
               p.score += points;
               playerEarnedPoints[p.id] = points;
@@ -682,19 +659,13 @@
             const record = answersReceived.value[p.id];
             const isCorrect = record && record.answer === q.answer;
             const feedbackLine = isCorrect ? q.feedback.correct : q.feedback.wrong;
-
             const myRank = ranked.findIndex(r => r.id === p.id) + 1;
 
             let peppaComment = "";
-            if (myRank <= 3) {
-              peppaComment = "Whoa, how are you so super awesome?!";
-            } else if (myRank <= Math.ceil(totalCount / 3)) {
-              peppaComment = "Ooh, this server actually knows their stuff!";
-            } else if (myRank <= Math.ceil(totalCount / 2)) {
-              peppaComment = "Come on, step it up a bit!";
-            } else {
-              peppaComment = "Sigh... your service quality is super worrying!";
-            }
+            if (myRank <= 3) peppaComment = "Whoa, how are you so super awesome?!";
+            else if (myRank <= Math.ceil(totalCount / 3)) peppaComment = "Ooh, this server actually knows their stuff!";
+            else if (myRank <= Math.ceil(totalCount / 2)) peppaComment = "Come on, step it up a bit!";
+            else peppaComment = "Sigh... your service quality is super worrying!";
 
             const conn = playerConns.value.find(c => c.peer === p.id);
             if (conn) {
@@ -758,9 +729,10 @@
               } else if (data.type === 'START_Q') {
                 playerState.value = 'answering';
                 submittedThisQuestion.value = false;
-                // 玩家端在答題時也有機率觸發快閃特效
-                if (Math.random() < 0.5) {
-                  triggerSurprise();
+                
+                // 接收 Host 統一發出的事件指示，確保房間內同步
+                if (data.surpriseType) {
+                  triggerSurpriseLocally(data.surpriseType);
                 }
               } else if (data.type === 'Q_RESULT') {
                 playerScore.value = data.score;
@@ -798,7 +770,7 @@
           hostConn.send({ type: 'SUBMIT_ANSWER', answer: index });
         };
 
-        Vue.watch(role, (newVal) => {
+        watch(role, (newVal) => {
           if (newVal === 'player') {
             nextTick(() => { initCanvas(); });
           }
