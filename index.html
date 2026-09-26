@@ -13,10 +13,70 @@
     .retro-green { background-color: #062319; }
     .card-green { background-color: #0d382a; }
     canvas { touch-action: none; }
+
+    /* 奔跑動畫 keyframes */
+    @keyframes runnerMove {
+      0% { transform: translateX(-150px); }
+      100% { transform: translateX(calc(100vw + 150px)); }
+    }
+    .animate-running-pigs {
+      animation: runnerMove linear forwards;
+    }
+
+    /* 哭泣放大抖動 keyframes */
+    @keyframes cryingZoom {
+      0% { transform: scale(0.2) rotate(0deg); opacity: 0.2; }
+      50% { transform: scale(1.1) rotate(-5deg); opacity: 1; }
+      70% { transform: scale(0.95) rotate(5deg); opacity: 1; }
+      100% { transform: scale(1) rotate(0deg); opacity: 1; }
+    }
+    .animate-crying-pig {
+      animation: cryingZoom 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+    @keyframes shake {
+      0%, 100% { transform: rotate(0deg); }
+      25% { transform: rotate(-8deg); }
+      75% { transform: rotate(8deg); }
+    }
+    .animate-shake {
+      animation: shake 0.3s infinite ease-in-out;
+    }
   </style>
 </head>
-<body class="retro-green text-emerald-100 min-h-screen font-sans">
+<body class="retro-green text-emerald-100 min-h-screen font-sans overflow-x-hidden relative">
   <div id="app" v-cloak class="max-w-4xl mx-auto p-4">
+
+    <!-- 突襲動態 Overlay -->
+    <div v-if="surpriseEvent.active" class="fixed inset-0 z-50 pointer-events-none flex items-center justify-center bg-black/30 backdrop-blur-[2px]">
+      
+      <!-- 事件 1：佩佩與喬治奔跑 -->
+      <div v-if="surpriseEvent.type === 'run'" 
+           class="absolute bottom-16 left-0 pointer-events-auto flex flex-col items-center animate-running-pigs"
+           :style="{ animationDuration: surpriseEvent.duration + 's' }">
+        <div class="flex items-end gap-2 bg-amber-100/90 border-2 border-amber-500 text-amber-950 font-bold px-4 py-2 rounded-2xl shadow-2xl mb-2 animate-bounce text-sm md:text-base">
+          <span>💨 Peppa & George are running in the tea room!</span>
+        </div>
+        <div class="flex items-end gap-1">
+          <!-- 佩佩豬向量示意與圖像 -->
+          <div class="text-6xl md:text-8xl filter drop-shadow-lg">🐷</div>
+          <div class="text-5xl md:text-7xl filter drop-shadow-lg">🦖</div>
+        </div>
+        <button @click="speedUpSurprise" class="mt-3 bg-rose-600 hover:bg-rose-500 text-white font-extrabold px-5 py-2 rounded-full shadow-lg border-2 border-white text-base active:scale-95 transition pointer-events-auto">
+          🛑 No Running! (-0.5s)
+        </button>
+      </div>
+
+      <!-- 事件 2：喬治哭泣放大 -->
+      <div v-if="surpriseEvent.type === 'cry'" class="pointer-events-auto flex flex-col items-center justify-center p-6 bg-emerald-950/90 border-4 border-amber-400 rounded-3xl shadow-2xl max-w-sm mx-auto text-center animate-crying-pig">
+        <div class="text-8xl md:text-9xl mb-2 animate-shake">😭</div>
+        <h4 class="text-2xl font-black text-amber-300">Waaaaah! George is Crying!</h4>
+        <p class="text-amber-100 text-sm mt-1 italic">"I lost my Dinosaur!"</p>
+        <button @click="speedUpSurprise" class="mt-5 bg-amber-500 hover:bg-amber-400 text-emerald-950 font-black px-6 py-3 rounded-full shadow-xl border-2 border-amber-200 text-lg active:scale-95 transition">
+          👑 Queen Never CRY (-0.5s)
+        </button>
+      </div>
+
+    </div>
 
     <!-- Role Selection -->
     <div v-if="role === null" class="text-center py-12 space-y-6">
@@ -130,7 +190,7 @@
               <span class="text-xl">{{ p.name }}</span>
               <span v-if="rank === 0" class="bg-emerald-950 text-amber-300 text-xs px-2.5 py-1 rounded border border-amber-400/40 font-bold">👑 Cow-World Awakener (哞界覺醒者)</span>
             </div>
-            <div class="text-xl font-mono">{{ p.score }} pts</div>
+            <div class="text-xl font-mono">{{ p.score }} tips</div>
           </div>
         </div>
       </div>
@@ -165,8 +225,8 @@
           </div>
         </div>
 
-        <button @click="joinHost" :disabled="!inputRoomId || !playerName" class="w-full bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-emerald-950 font-bold py-3 rounded-lg shadow-md">
-          Join Game
+        <button @click="joinHost" :disabled="!inputRoomId || !playerName || isConnecting" class="w-full bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-emerald-950 font-bold py-3 rounded-lg shadow-md transition">
+          {{ isConnecting ? 'Connecting... ⏳' : 'Join Game' }}
         </button>
       </div>
 
@@ -177,7 +237,7 @@
             <img :src="myAvatar" class="w-10 h-10 rounded-full border border-amber-300 bg-white object-cover">
             <span class="font-bold text-emerald-100">🧑‍🍳 {{ playerName }}</span>
           </div>
-          <span class="font-mono text-amber-300 font-bold">Today's Earnings: {{ playerScore }} pts</span>
+          <span class="font-mono text-amber-300 font-bold">Today's Tips: {{ playerScore }} tips</span>
         </div>
 
         <div v-if="playerState === 'waiting'" class="text-center py-16 card-green rounded-xl border border-emerald-800 space-y-2">
@@ -199,13 +259,12 @@
 
         <!-- Player Result & Rank Section -->
         <div v-if="playerState === 'result'" class="space-y-4">
-          <!-- Answer Result Box -->
           <div class="text-center py-8 p-5 rounded-xl border-2 border-amber-400/40 bg-gradient-to-b from-emerald-900/90 to-emerald-950 space-y-4">
             <div v-if="lastResult.isCorrect" class="text-3xl md:text-4xl font-black text-amber-300">
-              🎉 Correct! (+{{ lastResult.pointsEarned }} pts)
+              🎉 Correct! (+{{ lastResult.pointsEarned }} tips)
             </div>
             <div v-else class="text-2xl md:text-3xl font-black text-rose-400">
-              😠 Wrong! (-100 pts)
+              😠 Wrong! (-100 tips)
             </div>
 
             <div class="p-4 rounded-xl bg-emerald-950 border border-emerald-700 text-amber-100 text-base max-w-md mx-auto">
@@ -214,7 +273,6 @@
             </div>
           </div>
 
-          <!-- Live Rank Box -->
           <div class="card-green p-5 rounded-xl border border-emerald-800 text-center space-y-2">
             <div class="text-2xl md:text-3xl font-black text-amber-300">
               Current Rank: <span class="text-white underline font-mono">#{{ lastResult.rank }}</span> <span class="text-lg text-emerald-300 font-normal">/ {{ lastResult.totalPlayers }}</span>
@@ -230,7 +288,7 @@
 
         <div v-if="playerState === 'ended'" class="text-center py-12 card-green rounded-xl space-y-4 border border-emerald-800">
           <h2 class="text-3xl font-bold text-amber-300">Game Over!</h2>
-          <p class="text-2xl font-mono">Today's Earnings:<br><span class="text-amber-200 text-3xl font-bold">{{ playerScore }} pts</span></p>
+          <p class="text-2xl font-mono">Today's Tips:<br><span class="text-amber-200 text-3xl font-bold">{{ playerScore }} tips</span></p>
         </div>
       </div>
     </div>
@@ -256,7 +314,7 @@
         }
       },
       { 
-        guestName: "George 🦖 & Peppa 🐷",
+        guestName: "George & Peppa 🦖🐷",
         scenario: [
           { speaker: "George", line: "Peppa! I’m hungry! Can I have cake?" },
           { speaker: "Peppa Pig", line: "Not yet, George! What do we have first at afternoon tea?" }
@@ -271,7 +329,7 @@
         }
       },
       { 
-        guestName: "Peppa Pig 🐷 & Suzy Sheep 🐑",
+        guestName: "Peppa Pig & Suzy Sheep 🐷🐑",
         scenario: [
           { speaker: "Peppa Pig", line: "I’m going to a fancy social activity! What should I do there?" },
           { speaker: "Suzy Sheep", line: "Maybe you could invite some people to your home?" }
@@ -315,7 +373,7 @@
         }
       },
       { 
-        guestName: "Suzy Sheep 🐑 & Peppa Pig 🐷",
+        guestName: "Suzy Sheep & Peppa Pig 🐑🐷",
         scenario: [
           { speaker: "Suzy Sheep", line: "Look! I can drink tea with my pinky finger sticking out!" },
           { speaker: "Peppa Pig", line: "Oooh! Is that fancy?" }
@@ -368,9 +426,18 @@
         const timerInterval = ref(null);
         const showAnswer = ref(false);
         const joined = ref(false);
+        const isConnecting = ref(false);
         const playerScore = ref(0);
         const lastResult = ref({ isCorrect: false, pointsEarned: 0, feedback: '', rank: 1, totalPlayers: 1, peppaComment: '' });
         const submittedThisQuestion = ref(false);
+
+        // 快閃突襲動態狀態
+        const surpriseEvent = ref({
+          active: false,
+          type: 'run', // 'run' 或 'cry'
+          duration: 7, // 預設 7 秒
+          timerId: null
+        });
 
         const drawCanvas = ref(null);
         const penColor = ref('#000000');
@@ -413,6 +480,37 @@
             return "Oink! You are such unprofessional waiters! You MUST do better!";
           }
         });
+
+        // 觸發快閃突襲
+        const triggerSurprise = () => {
+          // 清除上一次的定時器
+          if (surpriseEvent.value.timerId) clearTimeout(surpriseEvent.value.timerId);
+
+          const types = ['run', 'cry'];
+          const selectedType = types[Math.floor(Math.random() * types.length)];
+
+          surpriseEvent.value = {
+            active: true,
+            type: selectedType,
+            duration: 7
+          };
+
+          scheduleSurpriseEnd();
+        };
+
+        const scheduleSurpriseEnd = () => {
+          if (surpriseEvent.value.timerId) clearTimeout(surpriseEvent.value.timerId);
+          surpriseEvent.value.timerId = setTimeout(() => {
+            surpriseEvent.value.active = false;
+          }, surpriseEvent.value.duration * 1000);
+        };
+
+        // 點擊按鈕使時間縮短 0.5 秒
+        const speedUpSurprise = () => {
+          if (!surpriseEvent.value.active) return;
+          surpriseEvent.value.duration = Math.max(0.5, surpriseEvent.value.duration - 0.5);
+          scheduleSurpriseEnd();
+        };
 
         const initCanvas = () => {
           if (!drawCanvas.value) return;
@@ -537,6 +635,11 @@
           timer.value = 30;
           broadcast({ type: 'START_Q' });
 
+          // 答題開始時有 50% 機率觸發動態驚喜特效
+          if (Math.random() < 0.5) {
+            triggerSurprise();
+          }
+
           clearInterval(timerInterval.value);
           timerInterval.value = setInterval(() => {
             if (timer.value > 0) { timer.value--; } else { revealAnswer(); }
@@ -546,6 +649,7 @@
         const revealAnswer = () => {
           clearInterval(timerInterval.value);
           showAnswer.value = true;
+          surpriseEvent.value.active = false; // 結算時停止動態特效
           const q = currentQ.value;
 
           const playerEarnedPoints = {};
@@ -556,11 +660,11 @@
               const t = record.timeRemaining;
               let multiplier = 1;
               if (t >= 20) {
-                multiplier = 2;   // 前10秒（剩餘20秒以上）
+                multiplier = 2;
               } else if (t >= 10) {
-                multiplier = 1.5; // 10~20秒間（剩餘10~19秒）
+                multiplier = 1.5;
               } else {
-                multiplier = 1;   // 20秒後（剩餘10秒以內）
+                multiplier = 1;
               }
               const points = 100 * multiplier;
               p.score += points;
@@ -621,14 +725,23 @@
         };
 
         const joinHost = () => {
+          if (isConnecting.value) return;
+          isConnecting.value = true;
+
           if (drawCanvas.value) {
             myAvatar.value = drawCanvas.value.toDataURL('image/png');
           }
 
+          if (peer) {
+            try { peer.destroy(); } catch(e){}
+          }
+
           peer = new Peer();
+
           peer.on('open', () => {
-            hostConn = peer.connect('rtt-room-' + inputRoomId.value.trim());
-            
+            const targetRoomId = 'rtt-room-' + inputRoomId.value.trim();
+            hostConn = peer.connect(targetRoomId);
+
             hostConn.on('open', () => {
               hostConn.send({ 
                 type: 'JOIN', 
@@ -640,12 +753,18 @@
             hostConn.on('data', (data) => {
               if (data.type === 'JOINED') {
                 joined.value = true;
+                isConnecting.value = false;
                 playerState.value = 'waiting';
               } else if (data.type === 'START_Q') {
                 playerState.value = 'answering';
                 submittedThisQuestion.value = false;
+                // 玩家端在答題時也有機率觸發快閃特效
+                if (Math.random() < 0.5) {
+                  triggerSurprise();
+                }
               } else if (data.type === 'Q_RESULT') {
                 playerScore.value = data.score;
+                surpriseEvent.value.active = false;
                 lastResult.value = { 
                   isCorrect: data.isCorrect, 
                   pointsEarned: data.pointsEarned,
@@ -659,6 +778,16 @@
                 playerState.value = 'ended';
               }
             });
+
+            hostConn.on('error', (err) => {
+              isConnecting.value = false;
+              alert('連線失敗，請確認房號是否正確！');
+            });
+          });
+
+          peer.on('error', (err) => {
+            isConnecting.value = false;
+            alert('網路連線發生錯誤，請稍後重試。');
           });
         };
 
@@ -677,9 +806,9 @@
 
         return {
           role, roomId, inputRoomId, playerName, players, gameState, playerState,
-          questions: QUESTIONS, currentQIndex, currentQ, timer, showAnswer, joined,
+          questions: QUESTIONS, currentQIndex, currentQ, timer, showAnswer, joined, isConnecting,
           playerScore, lastResult, answeredCount, sortedPlayers, submittedThisQuestion,
-          correctCount, hostReactionText,
+          correctCount, hostReactionText, surpriseEvent, speedUpSurprise,
           drawCanvas, penColor, myAvatar, clearCanvas,
           initHost, startGame, revealAnswer, nextQuestion, joinHost, submitAnswer
         };
