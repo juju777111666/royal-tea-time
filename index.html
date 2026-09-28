@@ -14,16 +14,18 @@
     .card-green { background-color: #0d382a; }
     canvas { touch-action: none; }
 
-    /* 奔跑動畫 keyframes */
+    /* 奔跑動畫 Keyframes */
     @keyframes runnerMove {
       0% { transform: translateX(-150px); }
       100% { transform: translateX(calc(100vw + 150px)); }
     }
     .animate-running-pigs {
-      animation: runnerMove linear forwards;
+      animation-name: runnerMove;
+      animation-timing-function: linear;
+      animation-fill-mode: forwards;
     }
 
-    /* 哭泣放大抖動 keyframes */
+    /* 哭泣放大抖動 Keyframes */
     @keyframes cryingZoom {
       0% { transform: scale(0.2) rotate(0deg); opacity: 0.2; }
       50% { transform: scale(1.1) rotate(-5deg); opacity: 1; }
@@ -46,13 +48,13 @@
 <body class="retro-green text-emerald-100 min-h-screen font-sans overflow-x-hidden relative">
   <div id="app" v-cloak class="max-w-4xl mx-auto p-4">
 
-    <!-- 突襲動態 Overlay (僅在玩家端顯示) -->
-    <div v-if="role === 'player' && surpriseEvent.active" class="fixed inset-0 z-50 pointer-events-none flex items-center justify-center bg-black/30 backdrop-blur-[2px]">
+    <!-- 玩家端專用：突襲動態 Overlay (主持端不顯示) -->
+    <div v-if="role === 'player' && surpriseEvent.active" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-md transition-all">
       
       <!-- 事件 1：佩佩與喬治奔跑 -->
       <div v-if="surpriseEvent.type === 'run'" 
-           class="absolute bottom-16 left-0 pointer-events-auto flex flex-col items-center animate-running-pigs"
-           :style="{ animationDuration: surpriseEvent.duration + 's' }">
+           class="absolute bottom-16 left-0 flex flex-col items-center animate-running-pigs"
+           :style="{ animationDuration: surpriseEvent.remainingTime + 's' }">
         <div class="flex items-end gap-2 bg-amber-100/90 border-2 border-amber-500 text-amber-950 font-bold px-4 py-2 rounded-2xl shadow-2xl mb-2 animate-bounce text-sm md:text-base">
           <span>💨 Peppa & George are running in the tea room!</span>
         </div>
@@ -60,17 +62,17 @@
           <div class="text-6xl md:text-8xl filter drop-shadow-lg">🐷</div>
           <div class="text-5xl md:text-7xl filter drop-shadow-lg">🦖</div>
         </div>
-        <button @click="speedUpSurprise" class="mt-3 bg-rose-600 hover:bg-rose-500 text-white font-extrabold px-5 py-2 rounded-full shadow-lg border-2 border-white text-base active:scale-95 transition pointer-events-auto">
+        <button @click="speedUpSurprise" class="mt-3 bg-rose-600 hover:bg-rose-500 active:scale-90 text-white font-extrabold px-5 py-2 rounded-full shadow-2xl border-2 border-white text-base transition cursor-pointer">
           🛑 No Running! (-0.5s)
         </button>
       </div>
 
       <!-- 事件 2：喬治哭泣放大 -->
-      <div v-if="surpriseEvent.type === 'cry'" class="pointer-events-auto flex flex-col items-center justify-center p-6 bg-emerald-950/90 border-4 border-amber-400 rounded-3xl shadow-2xl max-w-sm mx-auto text-center animate-crying-pig">
+      <div v-if="surpriseEvent.type === 'cry'" class="flex flex-col items-center justify-center p-6 bg-emerald-950/95 border-4 border-amber-400 rounded-3xl shadow-2xl max-w-sm mx-auto text-center animate-crying-pig">
         <div class="text-8xl md:text-9xl mb-2 animate-shake">😭</div>
         <h4 class="text-2xl font-black text-amber-300">Waaaaah! George is Crying!</h4>
         <p class="text-amber-100 text-sm mt-1 italic">"I lost my Dinosaur!"</p>
-        <button @click="speedUpSurprise" class="mt-5 bg-amber-500 hover:bg-amber-400 text-emerald-950 font-black px-6 py-3 rounded-full shadow-xl border-2 border-amber-200 text-lg active:scale-95 transition">
+        <button @click="speedUpSurprise" class="mt-5 bg-amber-500 hover:bg-amber-400 active:scale-90 text-emerald-950 font-black px-6 py-3 rounded-full shadow-2xl border-2 border-amber-200 text-lg transition cursor-pointer">
           👑 Queen Never CRY (-0.5s)
         </button>
       </div>
@@ -122,11 +124,6 @@
               QUESTION {{ currentQIndex + 1 }}
             </span>
             <span class="text-2xl font-black text-rose-400">⏱️ {{ timer }}s</span>
-          </div>
-
-          <!-- 主持端提示：目前玩家正在發生的突襲事件 -->
-          <div v-if="hostSurpriseNotice" class="bg-rose-950/80 border border-rose-500/50 text-rose-200 px-4 py-2 rounded-lg text-xs md:text-sm font-bold flex items-center gap-2">
-            <span>⚡ Surprise Event Active on Players' Devices: {{ hostSurpriseNotice }}</span>
           </div>
 
           <!-- Guest Scenario -->
@@ -192,7 +189,6 @@
               <span class="text-2xl">{{ rank === 0 ? '🥇' : rank === 1 ? '🥈' : rank === 2 ? '🥉' : '#' + (rank + 1) }}</span>
               <img :src="p.avatar || 'https://api.dicebear.com/7.x/bottts/svg?seed=' + p.name" class="w-12 h-12 rounded-full border border-amber-400/40 bg-black/20 object-cover">
               <span class="text-xl">{{ p.name }}</span>
-              <!-- 稱號中刪除中文 -->
               <span v-if="rank === 0" class="bg-emerald-950 text-amber-300 text-xs px-2.5 py-1 rounded border border-amber-400/40 font-bold">👑 Cow-World Awakener</span>
             </div>
             <div class="text-xl font-mono">{{ p.score }} tips</div>
@@ -245,14 +241,14 @@
           <span class="font-mono text-amber-300 font-bold">Today's Tips: {{ playerScore }} tips</span>
         </div>
 
-        <!-- Waiting screen text updated -->
         <div v-if="playerState === 'waiting'" class="text-center py-16 card-green rounded-xl border border-emerald-800 space-y-2">
-          <p class="text-xl text-emerald-200/80 animate-pulse">Preparing for opening... ☕</p>
+          <p class="text-xl text-emerald-200/80 animate-pulse">☕ Waiting for shop opening...</p>
         </div>
 
-        <div v-if="playerState === 'answering'" class="grid grid-cols-2 gap-4">
+        <!-- 答題按鈕區（當突襲觸發時禁用點擊） -->
+        <div v-if="playerState === 'answering'" class="grid grid-cols-2 gap-4" :class="{'pointer-events-none opacity-50': surpriseEvent.active}">
           <button v-for="(opt, idx) in 4" :key="idx" @click="submitAnswer(idx)" 
-                  :disabled="submittedThisQuestion"
+                  :disabled="submittedThisQuestion || surpriseEvent.active"
                   class="bg-amber-600 hover:bg-amber-500 active:bg-amber-700 disabled:opacity-60 text-white font-black text-3xl py-12 rounded-xl shadow-lg border-b-4 border-amber-800">
             {{ String.fromCharCode(65 + idx) }}
           </button>
@@ -437,17 +433,16 @@
         const lastResult = ref({ isCorrect: false, pointsEarned: 0, feedback: '', rank: 1, totalPlayers: 1, peppaComment: '' });
         const submittedThisQuestion = ref(false);
 
-        // 控制突襲間隔與主持端提示
-        const lastSurpriseQIndex = ref(-999);
-        const hostSurpriseNotice = ref('');
+        // 追蹤上一次是否有突襲，確保不連續出現
+        const lastQuestionHadSurprise = ref(false);
 
-        // 快閃突襲動態狀態（時間改為 20 秒）
+        // 突襲事件狀態
         const surpriseEvent = ref({
           active: false,
           type: 'run', 
-          duration: 20, 
-          timerId: null
+          remainingTime: 20
         });
+        let surpriseTimer = null;
 
         const drawCanvas = ref(null);
         const penColor = ref('#000000');
@@ -491,31 +486,38 @@
           }
         });
 
-        // 觸發玩家端突襲（20秒滿額）
-        const triggerSurpriseForPlayer = (eventType) => {
-          if (surpriseEvent.value.timerId) clearTimeout(surpriseEvent.value.timerId);
-
+        // 啟動與管理突襲倒數計時器 (實質縮短時間)
+        const startSurpriseTimer = (type) => {
+          stopSurpriseTimer();
           surpriseEvent.value = {
             active: true,
-            type: eventType,
-            duration: 20
+            type: type,
+            remainingTime: 20
           };
 
-          scheduleSurpriseEnd();
+          surpriseTimer = setInterval(() => {
+            surpriseEvent.value.remainingTime = Math.max(0, surpriseEvent.value.remainingTime - 0.1);
+            if (surpriseEvent.value.remainingTime <= 0) {
+              stopSurpriseTimer();
+            }
+          }, 100);
         };
 
-        const scheduleSurpriseEnd = () => {
-          if (surpriseEvent.value.timerId) clearTimeout(surpriseEvent.value.timerId);
-          surpriseEvent.value.timerId = setTimeout(() => {
-            surpriseEvent.value.active = false;
-          }, surpriseEvent.value.duration * 1000);
+        const stopSurpriseTimer = () => {
+          if (surpriseTimer) {
+            clearInterval(surpriseTimer);
+            surpriseTimer = null;
+          }
+          surpriseEvent.value.active = false;
         };
 
-        // 按鈕加速 (-0.5s)
+        // 按鈕點擊：實質扣除 0.5 秒剩餘時間
         const speedUpSurprise = () => {
           if (!surpriseEvent.value.active) return;
-          surpriseEvent.value.duration = Math.max(0.5, surpriseEvent.value.duration - 0.5);
-          scheduleSurpriseEnd();
+          surpriseEvent.value.remainingTime = Math.max(0, surpriseEvent.value.remainingTime - 0.5);
+          if (surpriseEvent.value.remainingTime <= 0) {
+            stopSurpriseTimer();
+          }
         };
 
         const initCanvas = () => {
@@ -632,31 +634,35 @@
           broadcast({ type: 'PLAYERS_UPDATE', players: players.value.map(p => ({ id: p.id, name: p.name, score: p.score, avatar: p.avatar })) });
         };
 
-        const startGame = () => { currentQIndex.value = 0; startQuestion(); };
+        const startGame = () => { 
+          currentQIndex.value = 0; 
+          lastQuestionHadSurprise.value = false;
+          startQuestion(); 
+        };
 
         const startQuestion = () => {
           gameState.value = 'quiz';
           showAnswer.value = false;
           answersReceived.value = {};
           timer.value = 30;
-          hostSurpriseNotice.value = '';
 
-          // 主機計算突襲幾率 (同房間同步)
-          let surpriseType = null;
-          
-          // 條件：絕不在第一題(0)出現，且距離上次出現至少隔 1 題
-          if (currentQIndex.value > 0 && (currentQIndex.value - lastSurpriseQIndex.value) > 1) {
-            if (Math.random() < 0.5) { // 50% 機率
-              const types = ['run', 'cry'];
-              surpriseType = types[Math.floor(Math.random() * types.length)];
-              lastSurpriseQIndex.value = currentQIndex.value;
-              hostSurpriseNotice.value = surpriseType === 'run' ? 'Peppa & George Running' : 'George Crying';
+          // 判斷是否觸發突襲：第一題絕對不出現，且不能連續兩題出現
+          let triggerSurprise = false;
+          let surpriseType = 'run';
+
+          if (currentQIndex.value > 0 && !lastQuestionHadSurprise.value) {
+            if (Math.random() < 0.5) {
+              triggerSurprise = true;
+              surpriseType = Math.random() < 0.5 ? 'run' : 'cry';
             }
           }
 
-          // 發送給所有玩家，若有突襲帶上事件類型
+          lastQuestionHadSurprise.value = triggerSurprise;
+
+          // 廣播題目與突襲指令給該房間所有人
           broadcast({ 
-            type: 'START_Q',
+            type: 'START_Q', 
+            hasSurprise: triggerSurprise,
             surpriseType: surpriseType
           });
 
@@ -669,9 +675,9 @@
         const revealAnswer = () => {
           clearInterval(timerInterval.value);
           showAnswer.value = true;
-          hostSurpriseNotice.value = '';
-          const q = currentQ.value;
+          stopSurpriseTimer();
 
+          const q = currentQ.value;
           const playerEarnedPoints = {};
 
           players.value.forEach(p => {
@@ -702,7 +708,6 @@
             const record = answersReceived.value[p.id];
             const isCorrect = record && record.answer === q.answer;
             const feedbackLine = isCorrect ? q.feedback.correct : q.feedback.wrong;
-
             const myRank = ranked.findIndex(r => r.id === p.id) + 1;
 
             let peppaComment = "";
@@ -758,11 +763,20 @@
 
           peer = new Peer();
 
+          // 超時保護：若 5 秒內未能連上房號則提示錯誤
+          const connectTimeout = setTimeout(() => {
+            if (isConnecting.value && !joined.value) {
+              isConnecting.value = false;
+              alert('連線失敗，請確認房號是否正確！');
+            }
+          }, 5000);
+
           peer.on('open', () => {
             const targetRoomId = 'rtt-room-' + inputRoomId.value.trim();
             hostConn = peer.connect(targetRoomId);
 
             hostConn.on('open', () => {
+              clearTimeout(connectTimeout);
               hostConn.send({ 
                 type: 'JOIN', 
                 name: playerName.value,
@@ -778,13 +792,16 @@
               } else if (data.type === 'START_Q') {
                 playerState.value = 'answering';
                 submittedThisQuestion.value = false;
-                // 若主機指定本題要觸發突襲，玩家端開啟突襲事件（持續20秒）
-                if (data.surpriseType) {
-                  triggerSurpriseForPlayer(data.surpriseType);
+                
+                // 接收主機端指令，若有突襲則同步開啟 20s 突襲
+                if (data.hasSurprise) {
+                  startSurpriseTimer(data.surpriseType);
+                } else {
+                  stopSurpriseTimer();
                 }
               } else if (data.type === 'Q_RESULT') {
                 playerScore.value = data.score;
-                surpriseEvent.value.active = false;
+                stopSurpriseTimer();
                 lastResult.value = { 
                   isCorrect: data.isCorrect, 
                   pointsEarned: data.pointsEarned,
@@ -795,30 +812,27 @@
                 };
                 playerState.value = 'result';
               } else if (data.type === 'GAME_END') {
+                stopSurpriseTimer();
                 playerState.value = 'ended';
               }
             });
 
-            // 監聽連線錯處，精準提示房號錯誤
-            hostConn.on('error', (err) => {
+            hostConn.on('error', () => {
+              clearTimeout(connectTimeout);
               isConnecting.value = false;
-              alert('房號輸入錯誤或該房間不存在，請重新確認！');
+              alert('連線失敗，請確認房號是否正確！');
             });
           });
 
-          // PeerJS 的全域 error 攔截 (房號找不到會拋出 peer-unavailable)
-          peer.on('error', (err) => {
+          peer.on('error', () => {
+            clearTimeout(connectTimeout);
             isConnecting.value = false;
-            if (err.type === 'peer-unavailable') {
-              alert('房號輸入錯誤或該房間不存在，請重新確認！');
-            } else {
-              alert('網路連線發生錯誤，請稍後重試。');
-            }
+            alert('連線失敗，請確認房號是否正確！');
           });
         };
 
         const submitAnswer = (index) => {
-          if (submittedThisQuestion.value) return;
+          if (submittedThisQuestion.value || surpriseEvent.value.active) return;
           submittedThisQuestion.value = true;
           playerState.value = 'submitted';
           hostConn.send({ type: 'SUBMIT_ANSWER', answer: index });
@@ -834,7 +848,7 @@
           role, roomId, inputRoomId, playerName, players, gameState, playerState,
           questions: QUESTIONS, currentQIndex, currentQ, timer, showAnswer, joined, isConnecting,
           playerScore, lastResult, answeredCount, sortedPlayers, submittedThisQuestion,
-          correctCount, hostReactionText, surpriseEvent, speedUpSurprise, hostSurpriseNotice,
+          correctCount, hostReactionText, surpriseEvent, speedUpSurprise,
           drawCanvas, penColor, myAvatar, clearCanvas,
           initHost, startGame, revealAnswer, nextQuestion, joinHost, submitAnswer
         };
