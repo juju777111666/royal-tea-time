@@ -14,7 +14,7 @@
     .card-green { background-color: #0d382a; }
     canvas { touch-action: none; }
 
-    /* 奔跑動畫 Keyframes */
+    /* 奔跑動畫 keyframes */
     @keyframes runnerMove {
       0% { transform: translateX(-150px); }
       100% { transform: translateX(calc(100vw + 150px)); }
@@ -23,9 +23,10 @@
       animation-name: runnerMove;
       animation-timing-function: linear;
       animation-fill-mode: forwards;
+      animation-iteration-count: 1;
     }
 
-    /* 哭泣放大抖動 Keyframes */
+    /* 哭泣放大抖動 keyframes */
     @keyframes cryingZoom {
       0% { transform: scale(0.2) rotate(0deg); opacity: 0.2; }
       50% { transform: scale(1.1) rotate(-5deg); opacity: 1; }
@@ -49,20 +50,21 @@
   <div id="app" v-cloak class="max-w-4xl mx-auto p-4">
 
     <!-- 玩家端專用：突襲動態 Overlay (主持端不顯示) -->
-    <div v-if="role === 'player' && surpriseEvent.active" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-md transition-all">
+    <div v-if="role === 'player' && surpriseEvent.active" 
+         class="fixed inset-0 z-50 pointer-events-auto flex items-center justify-center bg-black/50 backdrop-blur-sm transition-all duration-300">
       
       <!-- 事件 1：佩佩與喬治奔跑 -->
       <div v-if="surpriseEvent.type === 'run'" 
            class="absolute bottom-16 left-0 flex flex-col items-center animate-running-pigs"
-           :style="{ animationDuration: surpriseEvent.remainingTime + 's' }">
-        <div class="flex items-end gap-2 bg-amber-100/90 border-2 border-amber-500 text-amber-950 font-bold px-4 py-2 rounded-2xl shadow-2xl mb-2 animate-bounce text-sm md:text-base">
-          <span>💨 Peppa & George are running in the tea room!</span>
+           :style="{ animationDuration: surpriseEvent.remaining + 's' }">
+        <div class="flex items-end gap-2 bg-amber-100/95 border-2 border-amber-500 text-amber-950 font-bold px-4 py-2 rounded-2xl shadow-2xl mb-2 animate-bounce text-sm md:text-base">
+          <span>💨 Peppa & George are running in the tea room! ({{ surpriseEvent.remaining.toFixed(1) }}s)</span>
         </div>
         <div class="flex items-end gap-1">
           <div class="text-6xl md:text-8xl filter drop-shadow-lg">🐷</div>
           <div class="text-5xl md:text-7xl filter drop-shadow-lg">🦖</div>
         </div>
-        <button @click="speedUpSurprise" class="mt-3 bg-rose-600 hover:bg-rose-500 active:scale-90 text-white font-extrabold px-5 py-2 rounded-full shadow-2xl border-2 border-white text-base transition cursor-pointer">
+        <button @click="speedUpSurprise" class="mt-3 bg-rose-600 hover:bg-rose-500 text-white font-extrabold px-6 py-2 rounded-full shadow-2xl border-2 border-white text-base active:scale-90 transition transform">
           🛑 No Running! (-0.5s)
         </button>
       </div>
@@ -71,8 +73,9 @@
       <div v-if="surpriseEvent.type === 'cry'" class="flex flex-col items-center justify-center p-6 bg-emerald-950/95 border-4 border-amber-400 rounded-3xl shadow-2xl max-w-sm mx-auto text-center animate-crying-pig">
         <div class="text-8xl md:text-9xl mb-2 animate-shake">😭</div>
         <h4 class="text-2xl font-black text-amber-300">Waaaaah! George is Crying!</h4>
-        <p class="text-amber-100 text-sm mt-1 italic">"I lost my Dinosaur!"</p>
-        <button @click="speedUpSurprise" class="mt-5 bg-amber-500 hover:bg-amber-400 active:scale-90 text-emerald-950 font-black px-6 py-3 rounded-full shadow-2xl border-2 border-amber-200 text-lg transition cursor-pointer">
+        <p class="text-amber-100 text-sm mt-1 italic mb-1">"I lost my Dinosaur!"</p>
+        <span class="text-xs text-amber-400 font-mono font-bold">Auto dismiss in {{ surpriseEvent.remaining.toFixed(1) }}s</span>
+        <button @click="speedUpSurprise" class="mt-4 bg-amber-500 hover:bg-amber-400 text-emerald-950 font-black px-6 py-3 rounded-full shadow-xl border-2 border-amber-200 text-lg active:scale-90 transition transform">
           👑 Queen Never CRY (-0.5s)
         </button>
       </div>
@@ -241,15 +244,16 @@
           <span class="font-mono text-amber-300 font-bold">Today's Tips: {{ playerScore }} tips</span>
         </div>
 
+        <!-- 修改點：等待開店 (英文) -->
         <div v-if="playerState === 'waiting'" class="text-center py-16 card-green rounded-xl border border-emerald-800 space-y-2">
-          <p class="text-xl text-emerald-200/80 animate-pulse">☕ Waiting for shop opening...</p>
+          <p class="text-xl text-emerald-200/80 animate-pulse">☕ Waiting for shop to open...</p>
         </div>
 
-        <!-- 答題按鈕區（當突襲觸發時禁用點擊） -->
-        <div v-if="playerState === 'answering'" class="grid grid-cols-2 gap-4" :class="{'pointer-events-none opacity-50': surpriseEvent.active}">
+        <div v-if="playerState === 'answering'" class="grid grid-cols-2 gap-4">
+          <!-- 突襲事件發生時停用點擊 -->
           <button v-for="(opt, idx) in 4" :key="idx" @click="submitAnswer(idx)" 
                   :disabled="submittedThisQuestion || surpriseEvent.active"
-                  class="bg-amber-600 hover:bg-amber-500 active:bg-amber-700 disabled:opacity-60 text-white font-black text-3xl py-12 rounded-xl shadow-lg border-b-4 border-amber-800">
+                  class="bg-amber-600 hover:bg-amber-500 active:bg-amber-700 disabled:opacity-50 text-white font-black text-3xl py-12 rounded-xl shadow-lg border-b-4 border-amber-800 transition">
             {{ String.fromCharCode(65 + idx) }}
           </button>
         </div>
@@ -298,119 +302,69 @@
   </div>
 
   <script>
-    const { createApp, ref, computed, onMounted, nextTick } = Vue;
+    const { createApp, ref, computed, watch, nextTick } = Vue;
 
     const QUESTIONS = [
       { 
         guestName: "Mummy Pig 🐷",
-        scenario: [
-          { speaker: "Mummy Pig", line: "Now, everyone, afternoon tea is a very special occasion. We must remember our manners!" }
-        ],
+        scenario: [{ speaker: "Mummy Pig", line: "Now, everyone, afternoon tea is a very special occasion. We must remember our manners!" }],
         jpHint: "Etiquette: マナー",
         question: "What should guests do during afternoon tea?", 
         options: ["Talk out loud", "Be graceful and polite", "Take action before host's signal", "Leave without saying goodbye"], 
         answer: 1, 
-        feedback: {
-          correct: "Very good! Good manners are always important.",
-          wrong: "Hmm… let’s remember to be graceful and polite."
-        }
+        feedback: { correct: "Very good! Good manners are always important.", wrong: "Hmm… let’s remember to be graceful and polite." }
       },
       { 
         guestName: "George & Peppa 🦖🐷",
-        scenario: [
-          { speaker: "George", line: "Peppa! I’m hungry! Can I have cake?" },
-          { speaker: "Peppa Pig", line: "Not yet, George! What do we have first at afternoon tea?" }
-        ],
+        scenario: [{ speaker: "George", line: "Peppa! I’m hungry! Can I have cake?" }, { speaker: "Peppa Pig", line: "Not yet, George! What do we have first at afternoon tea?" }],
         jpHint: "Order: じゅんばん",
         question: "What should be eaten first during afternoon tea?", 
         options: ["Tea", "Cakes and desserts", "Sandwiches", "Scones"], 
         answer: 2, 
-        feedback: {
-          correct: "Sandwiches first! Then cake!",
-          wrong: "Waaaaah! But I wanted cake!"
-        }
+        feedback: { correct: "Sandwiches first! Then cake!", wrong: "Waaaaah! But I wanted cake!" }
       },
       { 
         guestName: "Peppa Pig & Suzy Sheep 🐷🐑",
-        scenario: [
-          { speaker: "Peppa Pig", line: "I’m going to a fancy social activity! What should I do there?" },
-          { speaker: "Suzy Sheep", line: "Maybe you could invite some people to your home?" }
-        ],
+        scenario: [{ speaker: "Peppa Pig", line: "I’m going to a fancy social activity! What should I do there?" }, { speaker: "Suzy Sheep", line: "Maybe you could invite some people to your home?" }],
         jpHint: "Socializing: こうりゅう",
         question: "What do people traditionally do when attending a social activity?", 
         options: ["Use social media", "Take pictures", "Invite people to their home", "Play games on phones"], 
         answer: 2, 
-        feedback: {
-          correct: "That’s right! It’s lovely to invite people over!",
-          wrong: "Baa! Think about traditional social habits!"
-        }
+        feedback: { correct: "That’s right! It’s lovely to invite people over!", wrong: "Baa! Think about traditional social habits!" }
       },
       { 
         guestName: "Daddy Pig 🐷",
-        scenario: [
-          { speaker: "Daddy Pig", line: "Ah, tea cups! I am an expert in sophisticated dining." },
-          { speaker: "Peppa Pig", line: "Are you really an expert, Daddy?" }
-        ],
+        scenario: [{ speaker: "Daddy Pig", line: "Ah, tea cups! I am an expert in sophisticated dining." }, { speaker: "Peppa Pig", line: "Are you really an expert, Daddy?" }],
         jpHint: "Porcelain: じき",
         question: "What material did nobles use for their tea cups?", 
         options: ["Metal", "Porcelain", "Wood", "Plastic"], 
         answer: 1, 
-        feedback: {
-          correct: "Exactly! Porcelain was the elegant choice.",
-          wrong: "Oh dear… think of something delicate and fancy."
-        }
+        feedback: { correct: "Exactly! Porcelain was the elegant choice.", wrong: "Oh dear… think of something delicate and fancy." }
       },
       { 
         guestName: "Granny Pig 👵",
-        scenario: [
-          { speaker: "Granny Pig", line: "Tea has a long history. Who made tea popular among nobles, Peppa?" },
-          { speaker: "Peppa Pig", line: "Let's test our server!" }
-        ],
+        scenario: [{ speaker: "Granny Pig", line: "Tea has a long history. Who made tea popular among nobles, Peppa?" }, { speaker: "Peppa Pig", line: "Let's test our server!" }],
         question: "Who made drinking tea popular among English nobles?", 
         options: ["Kass", "Civilians", "Catherine of Braganza", "Queen Elizabeth I"], 
         answer: 2, 
-        feedback: {
-          correct: "That’s right! Catherine of Braganza made tea fashionable.",
-          wrong: "Not quite. Think of a queen from Portugal."
-        }
+        feedback: { correct: "That’s right! Catherine of Braganza made tea fashionable.", wrong: "Not quite. Think of a queen from Portugal." }
       },
       { 
         guestName: "Suzy Sheep & Peppa Pig 🐑🐷",
-        scenario: [
-          { speaker: "Suzy Sheep", line: "Look! I can drink tea with my pinky finger sticking out!" },
-          { speaker: "Peppa Pig", line: "Oooh! Is that fancy?" }
-        ],
+        scenario: [{ speaker: "Suzy Sheep", line: "Look! I can drink tea with my pinky finger sticking out!" }, { speaker: "Peppa Pig", line: "Oooh! Is that fancy?" }],
         jpHint: "Pinky finger: こゆび",
         question: "In traditional tea etiquette, what does sticking your pinky finger out mean?", 
-        options: [
-          "You are ultra-fancy and royal!", 
-          "Your pinky finger needs cool air.", 
-          "You are being snobbish and showing bad manners!", 
-          "You want to make a pinky promise."
-        ], 
+        options: ["You are ultra-fancy and royal!", "Your pinky finger needs cool air.", "You are being snobbish and showing bad manners!", "You want to make a pinky promise."], 
         answer: 2, 
-        feedback: {
-          correct: "Quite right! Sticking your pinky out is bad manners.",
-          wrong: "Oh dear! Don't let that little finger fool you!"
-        }
+        feedback: { correct: "Quite right! Sticking your pinky out is bad manners.", wrong: "Oh dear! Don't let that little finger fool you!" }
       },
       { 
         guestName: "Madame Gazelle 🐐",
-        scenario: [
-          { speaker: "Madame Gazelle", line: "Children, let's learn how British people deal with small unexpected troubles!" }
-        ],
+        scenario: [{ speaker: "Madame Gazelle", line: "Children, let's learn how British people deal with small unexpected troubles!" }],
         question: "Edmond Elephant says: \"Oh no! My TEDDY is broken!\"\nMr. Elephant replies: \"Don't panic!\"\n\nWhat would Mr. Elephant say next?", 
-        options: [
-          "Shall I put the kettle on?", 
-          "Shall I fight the rain?", 
-          "Shall I buy a new phone?", 
-          "Shall I call the principal?"
-        ], 
+        options: ["Shall I put the kettle on?", "Shall I fight the rain?", "Shall I buy a new phone?", "Shall I call the principal?"], 
         answer: 0, 
-        feedback: {
-          correct: "There we are! Nothing says British quite like putting the kettle on.",
-          wrong: "Hmm… a cup of tea would be much more helpful!"
-        }
+        feedback: { correct: "There we are! Nothing says British quite like putting the kettle on.", wrong: "Hmm… a cup of tea would be much more helpful!" }
       }
     ];
 
@@ -433,16 +387,16 @@
         const lastResult = ref({ isCorrect: false, pointsEarned: 0, feedback: '', rank: 1, totalPlayers: 1, peppaComment: '' });
         const submittedThisQuestion = ref(false);
 
-        // 追蹤上一次是否有突襲，確保不連續出現
-        const lastQuestionHadSurprise = ref(false);
-
-        // 突襲事件狀態
+        // 快閃突襲動態狀態（預設 20 秒倒數，點擊確切扣減時間）
         const surpriseEvent = ref({
           active: false,
           type: 'run', 
-          remainingTime: 20
+          remaining: 20
         });
         let surpriseTimer = null;
+
+        // 預估哪兩題觸發突襲 (絕非第 1 題，且至少間隔 2 題)
+        const scheduledEvents = ref({}); 
 
         const drawCanvas = ref(null);
         const penColor = ref('#000000');
@@ -464,60 +418,74 @@
           let count = 0;
           players.value.forEach(p => {
             const rec = answersReceived.value[p.id];
-            if (rec && rec.answer === q.answer) {
-              count++;
-            }
+            if (rec && rec.answer === q.answer) count++;
           });
           return count;
         });
 
         const hostReactionText = computed(() => {
           const total = players.value.length;
-          if (total === 0) return "Oink! Hmm... How interesting!";
+          if (total === 0) return "Oink! Host preparing...";
           const count = correctCount.value;
           const ratio = count / total;
-
-          if (ratio > 0.5) {
-            return "Oink! Wow! I love many of your service!";
-          } else if (ratio === 0.5) {
-            return "Oink! Hmm... How interesting!";
-          } else {
-            return "Oink! You are such unprofessional waiters! You MUST do better!";
-          }
+          if (ratio > 0.5) return "Oink! Wow! I love many of your service!";
+          if (ratio === 0.5) return "Oink! Hmm... How interesting!";
+          return "Oink! You are such unprofessional waiters! You MUST do better!";
         });
 
-        // 啟動與管理突襲倒數計時器 (實質縮短時間)
-        const startSurpriseTimer = (type) => {
-          stopSurpriseTimer();
+        // 產生第 2~7 題之間的兩個不重疊且帶有間隔的突襲關卡
+        const generateEventSchedule = () => {
+          // 可用題目 index: 1, 2, 3, 4, 5, 6 (對應第 2~7 題)
+          const pool = [1, 2, 3, 4, 5, 6];
+          const first = pool[Math.floor(Math.random() * 3)]; // 1, 2, 3 之中選一題
+          const secondPool = pool.filter(qIdx => qIdx >= first + 2); // 至少隔 2 題
+          const second = secondPool[Math.floor(Math.random() * secondPool.length)] || (first + 2);
+
+          const schedule = {};
+          // 隨機分配兩種事件
+          if (Math.random() < 0.5) {
+            schedule[first] = 'run';
+            schedule[second] = 'cry';
+          } else {
+            schedule[first] = 'cry';
+            schedule[second] = 'run';
+          }
+          return schedule;
+        };
+
+        // 開啟突襲事件（玩家端觸發）
+        const triggerSurpriseLocal = (type) => {
+          if (surpriseTimer) clearInterval(surpriseTimer);
+
           surpriseEvent.value = {
             active: true,
             type: type,
-            remainingTime: 20
+            remaining: 20
           };
 
           surpriseTimer = setInterval(() => {
-            surpriseEvent.value.remainingTime = Math.max(0, surpriseEvent.value.remainingTime - 0.1);
-            if (surpriseEvent.value.remainingTime <= 0) {
-              stopSurpriseTimer();
+            if (surpriseEvent.value.remaining > 0.1) {
+              surpriseEvent.value.remaining -= 0.1;
+            } else {
+              closeSurprise();
             }
           }, 100);
         };
 
-        const stopSurpriseTimer = () => {
-          if (surpriseTimer) {
-            clearInterval(surpriseTimer);
-            surpriseTimer = null;
-          }
-          surpriseEvent.value.active = false;
-        };
-
-        // 按鈕點擊：實質扣除 0.5 秒剩餘時間
+        // 加速消退 (-0.5 秒)
         const speedUpSurprise = () => {
           if (!surpriseEvent.value.active) return;
-          surpriseEvent.value.remainingTime = Math.max(0, surpriseEvent.value.remainingTime - 0.5);
-          if (surpriseEvent.value.remainingTime <= 0) {
-            stopSurpriseTimer();
+          surpriseEvent.value.remaining = Math.max(0, surpriseEvent.value.remaining - 0.5);
+          if (surpriseEvent.value.remaining <= 0) {
+            closeSurprise();
           }
+        };
+
+        // 結束並消除霧面效果
+        const closeSurprise = () => {
+          if (surpriseTimer) clearInterval(surpriseTimer);
+          surpriseEvent.value.active = false;
+          surpriseEvent.value.remaining = 0;
         };
 
         const initCanvas = () => {
@@ -534,21 +502,8 @@
             return { x: clientX - rect.left, y: clientY - rect.top };
           };
 
-          const startDraw = (e) => {
-            isDrawing = true;
-            const pos = getPos(e);
-            ctx.beginPath();
-            ctx.moveTo(pos.x, pos.y);
-          };
-
-          const moveDraw = (e) => {
-            if (!isDrawing) return;
-            const pos = getPos(e);
-            ctx.strokeStyle = penColor.value;
-            ctx.lineTo(pos.x, pos.y);
-            ctx.stroke();
-          };
-
+          const startDraw = (e) => { isDrawing = true; const pos = getPos(e); ctx.beginPath(); ctx.moveTo(pos.x, pos.y); };
+          const moveDraw = (e) => { if (!isDrawing) return; const pos = getPos(e); ctx.strokeStyle = penColor.value; ctx.lineTo(pos.x, pos.y); ctx.stroke(); };
           const stopDraw = () => { isDrawing = false; };
 
           canvas.addEventListener('mousedown', startDraw);
@@ -600,10 +555,7 @@
                   broadcast({ type: 'PLAYERS_UPDATE', players: players.value.map(p => ({ id: p.id, name: p.name, score: p.score, avatar: p.avatar })) });
                 } else if (data && data.type === 'SUBMIT_ANSWER') {
                   if (!answersReceived.value[conn.peer]) {
-                    answersReceived.value[conn.peer] = { 
-                      answer: data.answer,
-                      timeRemaining: timer.value 
-                    };
+                    answersReceived.value[conn.peer] = { answer: data.answer, timeRemaining: timer.value };
                   }
                 }
               });
@@ -635,8 +587,8 @@
         };
 
         const startGame = () => { 
+          scheduledEvents.value = generateEventSchedule(); // Host 產生此房間的事件時間表
           currentQIndex.value = 0; 
-          lastQuestionHadSurprise.value = false;
           startQuestion(); 
         };
 
@@ -646,25 +598,9 @@
           answersReceived.value = {};
           timer.value = 30;
 
-          // 判斷是否觸發突襲：第一題絕對不出現，且不能連續兩題出現
-          let triggerSurprise = false;
-          let surpriseType = 'run';
-
-          if (currentQIndex.value > 0 && !lastQuestionHadSurprise.value) {
-            if (Math.random() < 0.5) {
-              triggerSurprise = true;
-              surpriseType = Math.random() < 0.5 ? 'run' : 'cry';
-            }
-          }
-
-          lastQuestionHadSurprise.value = triggerSurprise;
-
-          // 廣播題目與突襲指令給該房間所有人
-          broadcast({ 
-            type: 'START_Q', 
-            hasSurprise: triggerSurprise,
-            surpriseType: surpriseType
-          });
+          // 判斷此題是否觸發事件，並發送給所有玩家
+          const eventForThisQ = scheduledEvents.value[currentQIndex.value] || null;
+          broadcast({ type: 'START_Q', surpriseType: eventForThisQ });
 
           clearInterval(timerInterval.value);
           timerInterval.value = setInterval(() => {
@@ -675,8 +611,6 @@
         const revealAnswer = () => {
           clearInterval(timerInterval.value);
           showAnswer.value = true;
-          stopSurpriseTimer();
-
           const q = currentQ.value;
           const playerEarnedPoints = {};
 
@@ -684,14 +618,7 @@
             const record = answersReceived.value[p.id];
             if (record && record.answer === q.answer) {
               const t = record.timeRemaining;
-              let multiplier = 1;
-              if (t >= 20) {
-                multiplier = 2;
-              } else if (t >= 10) {
-                multiplier = 1.5;
-              } else {
-                multiplier = 1;
-              }
+              let multiplier = t >= 20 ? 2 : t >= 10 ? 1.5 : 1;
               const points = 100 * multiplier;
               p.score += points;
               playerEarnedPoints[p.id] = points;
@@ -711,15 +638,10 @@
             const myRank = ranked.findIndex(r => r.id === p.id) + 1;
 
             let peppaComment = "";
-            if (myRank <= 3) {
-              peppaComment = "Whoa, how are you so super awesome?!";
-            } else if (myRank <= Math.ceil(totalCount / 3)) {
-              peppaComment = "Ooh, this server actually knows their stuff!";
-            } else if (myRank <= Math.ceil(totalCount / 2)) {
-              peppaComment = "Come on, step it up a bit!";
-            } else {
-              peppaComment = "Sigh... your service quality is super worrying!";
-            }
+            if (myRank <= 3) peppaComment = "Whoa, how are you so super awesome?!";
+            else if (myRank <= Math.ceil(totalCount / 3)) peppaComment = "Ooh, this server actually knows their stuff!";
+            else if (myRank <= Math.ceil(totalCount / 2)) peppaComment = "Come on, step it up a bit!";
+            else peppaComment = "Sigh... your service quality is super worrying!";
 
             const conn = playerConns.value.find(c => c.peer === p.id);
             if (conn) {
@@ -763,25 +685,20 @@
 
           peer = new Peer();
 
-          // 超時保護：若 5 秒內未能連上房號則提示錯誤
-          const connectTimeout = setTimeout(() => {
-            if (isConnecting.value && !joined.value) {
-              isConnecting.value = false;
-              alert('連線失敗，請確認房號是否正確！');
-            }
-          }, 5000);
-
           peer.on('open', () => {
             const targetRoomId = 'rtt-room-' + inputRoomId.value.trim();
             hostConn = peer.connect(targetRoomId);
 
+            let connectionTimeout = setTimeout(() => {
+              if (isConnecting.value) {
+                isConnecting.value = false;
+                alert('Invalid room code or host disconnected!');
+              }
+            }, 4000);
+
             hostConn.on('open', () => {
-              clearTimeout(connectTimeout);
-              hostConn.send({ 
-                type: 'JOIN', 
-                name: playerName.value,
-                avatar: myAvatar.value
-              });
+              clearTimeout(connectionTimeout);
+              hostConn.send({ type: 'JOIN', name: playerName.value, avatar: myAvatar.value });
             });
 
             hostConn.on('data', (data) => {
@@ -792,16 +709,15 @@
               } else if (data.type === 'START_Q') {
                 playerState.value = 'answering';
                 submittedThisQuestion.value = false;
-                
-                // 接收主機端指令，若有突襲則同步開啟 20s 突襲
-                if (data.hasSurprise) {
-                  startSurpriseTimer(data.surpriseType);
-                } else {
-                  stopSurpriseTimer();
+                closeSurprise();
+
+                // 收到 Host 廣播的突襲事件
+                if (data.surpriseType) {
+                  triggerSurpriseLocal(data.surpriseType);
                 }
               } else if (data.type === 'Q_RESULT') {
                 playerScore.value = data.score;
-                stopSurpriseTimer();
+                closeSurprise();
                 lastResult.value = { 
                   isCorrect: data.isCorrect, 
                   pointsEarned: data.pointsEarned,
@@ -812,22 +728,21 @@
                 };
                 playerState.value = 'result';
               } else if (data.type === 'GAME_END') {
-                stopSurpriseTimer();
+                closeSurprise();
                 playerState.value = 'ended';
               }
             });
 
             hostConn.on('error', () => {
-              clearTimeout(connectTimeout);
+              clearTimeout(connectionTimeout);
               isConnecting.value = false;
-              alert('連線失敗，請確認房號是否正確！');
+              alert('Invalid room code or host disconnected!');
             });
           });
 
           peer.on('error', () => {
-            clearTimeout(connectTimeout);
             isConnecting.value = false;
-            alert('連線失敗，請確認房號是否正確！');
+            alert('Invalid room code or host disconnected!');
           });
         };
 
@@ -838,7 +753,7 @@
           hostConn.send({ type: 'SUBMIT_ANSWER', answer: index });
         };
 
-        Vue.watch(role, (newVal) => {
+        watch(role, (newVal) => {
           if (newVal === 'player') {
             nextTick(() => { initCanvas(); });
           }
